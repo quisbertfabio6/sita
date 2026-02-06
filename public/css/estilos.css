@@ -1,0 +1,169 @@
+:root {
+    --color-institucional: #D32F2F;
+    --color-oscuro: #1a1a1a;
+    --color-fondo: #f4f6f9;
+    --ancho-sidebar: 260px;
+}
+
+body {
+    background-color: var(--color-fondo);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    overflow-x: hidden; /* Evita scroll horizontal indeseado */
+}
+
+/* --- LAYOUT CON SIDEBAR --- */
+.wrapper {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+    position: relative;
+}
+
+#sidebar {
+    min-width: var(--ancho-sidebar);
+    max-width: var(--ancho-sidebar);
+    background: var(--color-institucional);
+    color: #fff;
+    transition: all 0.3s;
+    min-height: 100vh;
+    z-index: 999;
+}
+
+#sidebar.active {
+    margin-left: calc(var(--ancho-sidebar) * -1);
+}
+
+#sidebar .sidebar-header {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+#sidebar ul.components {
+    padding: 20px 0;
+}
+
+#sidebar ul li {
+    padding: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#sidebar ul li a {
+    padding: 15px 20px;
+    display: block;
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.1em;
+}
+
+#sidebar ul li a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding-left: 30px;
+    transition: 0.3s;
+}
+
+#content {
+    width: 100%;
+    padding: 20px;
+    min-height: 100vh;
+    transition: all 0.3s;
+}
+
+/* --- BOTÓN HAMBURGUESA (Solo visible en móvil) --- */
+#sidebarCollapse {
+    background: var(--color-institucional);
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 15px;
+    display: none; /* Oculto en PC */
+}
+
+/* --- RESPONSIVIDAD (MÓVIL Y TABLET) --- */
+@media (max-width: 768px) {
+    /* El sidebar se esconde por defecto en móvil */
+    #sidebar {
+        margin-left: calc(var(--ancho-sidebar) * -1);
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        box-shadow: 3px 0 15px rgba(0,0,0,0.2);
+    }
+
+    /* Cuando está activo, aparece */
+    #sidebar.active {
+        margin-left: 0;
+    }
+
+    /* El botón hamburguesa aparece */
+    #sidebarCollapse {
+        display: inline-block;
+    }
+
+    /* El contenido ocupa todo el ancho */
+    #content {
+        width: 100%;
+        padding: 15px;
+    }
+    
+    /* Ajuste de tarjetas en móvil */
+    .card-stats {
+        margin-bottom: 15px;
+    }
+
+    /* Overlay oscuro cuando se abre el menú */
+    .overlay {
+        display: none;
+        position: fixed;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 998;
+        opacity: 0;
+        transition: all 0.5s ease-in-out;
+    }
+    
+    .overlay.active {
+        display: block;
+        opacity: 1;
+    }
+}
+
+/* --- ESTILOS LOGIN --- */
+.login-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+.login-form-section {
+    flex: 1;
+    padding: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #fff;
+}
+
+.login-image-section {
+    flex: 1;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Login en móvil */
+@media (max-width: 992px) {
+    .login-wrapper {
+        flex-direction: column;
+    }
+    .login-image-section {
+        display: none; /* Ocultamos la imagen en celular para ahorrar espacio */
+    }
+    .login-card {
+        box-shadow: none; /* Quitamos sombra para que se vea plano en móvil */
+        padding: 0;
+    }
+}
