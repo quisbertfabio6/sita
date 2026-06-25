@@ -100,6 +100,7 @@
     </div>
 
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ asset('js/chart.min.js') }}"></script>
     <script>
         // Script para el menú lateral responsivo
         document.addEventListener("DOMContentLoaded", function () {
