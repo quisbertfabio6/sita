@@ -10,7 +10,7 @@ use App\Models\Estudiante;
 use App\Models\Docente;
 use App\Models\Materia;
 use App\Models\Usuario;
-use App\Models\Asistencia; // <--- Importante para la Opción A
+use App\Models\Asistencia;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -24,31 +24,30 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
 
     // ==========================================
-    //      DASHBOARD ADMIN (OPCIÓN A: ASISTENCIA)
+    //      DASHBOARD ADMIN (3 KPIs)
     // ==========================================
     Route::get('/admin/dashboard', function () {
         
-        // 1. Mantener tus Contadores (KPIs)
+        // Lógica de los 3 KPIs solicitados
         $datos = [
             'total_estudiantes' => Estudiante::count(),
-            'total_docentes'    => Docente::count(),
-            'total_materias'    => Materia::count(),
+            // Contamos a todos los usuarios cuyo rol NO sea estudiante (Admins, Jefes, Docentes)
+            'total_plantel'     => Usuario::whereHas('rol', function($q) {
+                                        $q->where('nombre', '!=', 'estudiante');
+                                   })->count(),
             'total_usuarios'    => Usuario::count(),
             'ultimos_usuarios'  => Usuario::latest()->take(5)->with('rol')->get()
         ];
 
-        // 2. Lógica Nueva: ASISTENCIA DE HOY
+        // ASISTENCIA DE HOY
         $hoy = now()->format('Y-m-d');
         
-        // Contamos cuántos hay de cada estado HOY
         $asistenciasHoy = Asistencia::whereDate('fecha', $hoy)
             ->select('estado', DB::raw('count(*) as total'))
             ->groupBy('estado')
             ->pluck('total', 'estado')
             ->toArray();
 
-        // Preparamos los datos para el gráfico en orden específico
-        // Orden: [Presentes, Faltas, Atrasos, Licencias]
         $chart_data = [
             $asistenciasHoy['presente'] ?? 0,
             $asistenciasHoy['falta'] ?? 0,
@@ -56,13 +55,12 @@ Route::middleware('auth')->group(function () {
             $asistenciasHoy['licencia'] ?? 0,
         ];
 
-        // Etiquetas fijas
         $chart_labels = ['Presentes', 'Faltas', 'Atrasos', 'Licencias'];
 
         return view('admin.dashboard', compact('datos', 'chart_labels', 'chart_data'));
     })->name('admin.dashboard');
 
-    // --- RESTO DE RUTAS (Idénticas a lo que ya tienes) ---
+    // --- RESTO DE RUTAS ---
     Route::get('/admin/usuarios', [App\Http\Controllers\UsuarioController::class, 'index'])->name('usuarios.index');
     Route::get('/admin/usuarios/create', [App\Http\Controllers\UsuarioController::class, 'create'])->name('usuarios.create');
     Route::post('/admin/usuarios', [App\Http\Controllers\UsuarioController::class, 'store'])->name('usuarios.store');
@@ -90,6 +88,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/docente/dashboard', [App\Http\Controllers\DocentePanelController::class, 'index'])->name('docente.dashboard');
     Route::get('/docente/curso/{id}', [App\Http\Controllers\DocentePanelController::class, 'verCurso'])->name('docente.curso.show');
+    
     Route::get('/estudiante/dashboard', [App\Http\Controllers\EstudiantePanelController::class, 'index'])->name('estudiante.dashboard');
     Route::get('/estudiante/asistencias', [App\Http\Controllers\EstudiantePanelController::class, 'misAsistencias'])->name('estudiante.asistencias');
     Route::get('/estudiante/licencias', [App\Http\Controllers\EstudiantePanelController::class, 'misLicencias'])->name('estudiante.licencias');

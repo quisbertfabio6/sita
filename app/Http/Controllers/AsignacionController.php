@@ -3,24 +3,33 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Asignacion; // Recuerda que creamos este modelo apuntando a 'materia_docente'
+use App\Models\Asignacion; 
 use App\Models\Docente;
 use App\Models\Materia;
 
 class AsignacionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Traemos la asignación con los datos del docente (usuario) y la materia (curso)
-        $asignaciones = Asignacion::with(['docente.usuario', 'materia.curso'])->get();
+        $query = Asignacion::with(['docente.usuario', 'materia.curso']);
+
+        // LÓGICA DEL BUSCADOR (Busca por nombre del docente o de la materia)
+        if ($request->has('buscar') && $request->buscar != '') {
+            $buscar = $request->buscar;
+            $query->whereHas('docente.usuario', function($q) use ($buscar) {
+                $q->where('nombre_completo', 'LIKE', '%' . $buscar . '%');
+            })->orWhereHas('materia', function($q) use ($buscar) {
+                $q->where('nombre', 'LIKE', '%' . $buscar . '%');
+            });
+        }
+
+        $asignaciones = $query->get();
         return view('admin.asignaciones.index', compact('asignaciones'));
     }
 
     public function create()
     {
-        // Listamos docentes y materias para los selectores
         $docentes = Docente::with('usuario')->get();
-        // Ordenamos las materias por nombre para que sea más fácil buscar
         $materias = Materia::with('curso')->orderBy('nombre')->get();
         
         return view('admin.asignaciones.create', compact('docentes', 'materias'));
@@ -33,7 +42,6 @@ class AsignacionController extends Controller
             'materia_id' => 'required|exists:materias,id',
         ]);
 
-        // Validación extra: Evitar duplicados
         $existe = Asignacion::where('docente_id', $request->docente_id)
                             ->where('materia_id', $request->materia_id)
                             ->exists();
@@ -42,7 +50,6 @@ class AsignacionController extends Controller
             return back()->withErrors(['error' => 'Este docente ya tiene asignada esta materia.']);
         }
 
-        // Guardamos en la tabla pivote
         $asignacion = new Asignacion();
         $asignacion->docente_id = $request->docente_id;
         $asignacion->materia_id = $request->materia_id;

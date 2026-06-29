@@ -7,25 +7,29 @@ use App\Models\Curso;
 
 class CursoController extends Controller
 {
-    // 1. Listar Cursos
-    public function index()
+    public function index(Request $request)
     {
-        $cursos = Curso::all(); // Trae todos los cursos
+        $query = Curso::query();
+
+        // LÓGICA DEL BUSCADOR
+        if ($request->has('buscar') && $request->buscar != '') {
+            $query->where('nombre', 'LIKE', '%' . $request->buscar . '%');
+        }
+
+        $cursos = $query->get(); 
         return view('admin.cursos.index', compact('cursos'));
     }
 
-    // 2. Mostrar Formulario de Creación
     public function create()
     {
         return view('admin.cursos.create');
     }
 
-    // 3. Guardar Nuevo Curso
     public function store(Request $request)
     {
         $request->validate([
             'nombre' => 'required|string|max:100',
-            'gestion' => 'required|string|max:20', // Ej: "1-2025"
+            'gestion' => 'required|string|max:20', 
         ]);
 
         Curso::create($request->all());
@@ -33,14 +37,12 @@ class CursoController extends Controller
         return redirect()->route('cursos.index')->with('success', 'Curso creado correctamente.');
     }
 
-    // 4. Mostrar Formulario de Edición
     public function edit($id)
     {
         $curso = Curso::findOrFail($id);
         return view('admin.cursos.edit', compact('curso'));
     }
 
-    // 5. Actualizar Curso
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -54,7 +56,6 @@ class CursoController extends Controller
         return redirect()->route('cursos.index')->with('success', 'Curso actualizado correctamente.');
     }
 
-    // 6. Eliminar Curso
     public function destroy($id)
     {
         $curso = Curso::findOrFail($id);

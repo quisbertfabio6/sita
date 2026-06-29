@@ -4,20 +4,26 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Materia;
-use App\Models\Curso; // <-- Necesitamos esto para el select
+use App\Models\Curso; 
 
 class MateriaController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Traemos materias CON su curso (para mostrar "Matemáticas - Primero A")
-        $materias = Materia::with('curso')->get(); 
+        $query = Materia::with('curso');
+
+        // LÓGICA DEL BUSCADOR
+        if ($request->has('buscar') && $request->buscar != '') {
+            $query->where('nombre', 'LIKE', '%' . $request->buscar . '%');
+        }
+
+        $materias = $query->get(); 
         return view('admin.materias.index', compact('materias'));
     }
 
     public function create()
     {
-        $cursos = Curso::all(); // Para el combo-box
+        $cursos = Curso::all(); 
         return view('admin.materias.create', compact('cursos'));
     }
 
@@ -26,7 +32,7 @@ class MateriaController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:100',
             'sigla' => 'nullable|string|max:20',
-            'curso_id' => 'required|exists:cursos,id', // Debe elegir un curso válido
+            'curso_id' => 'required|exists:cursos,id', 
         ]);
 
         Materia::create($request->all());

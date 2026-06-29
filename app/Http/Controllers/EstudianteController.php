@@ -8,14 +8,25 @@ use App\Models\Usuario;
 use App\Models\Rol;
 use App\Models\Curso;
 use Illuminate\Support\Facades\Hash;
-use App\Imports\EstudiantesImport; // Importante
-use Maatwebsite\Excel\Facades\Excel; // Importante
+use App\Imports\EstudiantesImport; 
+use Maatwebsite\Excel\Facades\Excel; 
 
 class EstudianteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $estudiantes = Estudiante::with(['usuario', 'curso'])->get();
+        $query = Estudiante::with(['usuario', 'curso']);
+
+        // LÓGICA DEL BUSCADOR POR NOMBRE
+        if ($request->has('buscar') && $request->buscar != '') {
+            $buscar = $request->buscar;
+            // Busca a través de la relación "usuario"
+            $query->whereHas('usuario', function($q) use ($buscar) {
+                $q->where('nombre_completo', 'LIKE', '%' . $buscar . '%');
+            });
+        }
+
+        $estudiantes = $query->get();
         return view('admin.estudiantes.index', compact('estudiantes'));
     }
 
@@ -58,7 +69,6 @@ class EstudianteController extends Controller
         return redirect()->route('estudiantes.index')->with('success', 'Estudiante registrado correctamente.');
     }
 
-    // FUNCIÓN DE IMPORTAR EXCEL
     public function importar(Request $request) 
     {
         $request->validate([

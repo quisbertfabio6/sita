@@ -13,45 +13,56 @@
         body, html {
             height: 100%;
             margin: 0;
-            overflow-x: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
+        /* --- CONTENEDOR PRINCIPAL (Fondo de pantalla completo) --- */
         .login-wrapper {
-            display: flex;
+            position: relative;
             min-height: 100vh;
             width: 100%;
-        }
-
-        /* --- SECCIÓN IZQUIERDA (Formulario) --- */
-        .login-form-section {
-            flex: 1;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: #f8f9fa;
-            padding: 40px;
-            position: relative;
-            transition: all 0.3s ease;
+            background-image: url("{{ asset('img/ita_fotoo.png') }}"); 
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            padding: 20px;
         }
 
+        /* Capa oscura sobre la imagen para que resalte el formulario */
+        .login-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 1;
+        }
+
+        /* --- LOGO DEL INSTITUTO --- */
         .login-logo-container {
             position: absolute;
-            top: 30px;
-            left: 40px;
+            top: 40px;
+            left: 50px;
+            z-index: 2;
         }
         .login-logo-container img {
-            height: 60px;
+            height: 150px; /* Tamaño incrementado según lo solicitado */
             width: auto;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); /* Sutil sombra para que destaque sobre el fondo */
         }
 
+        /* --- TARJETA DE FORMULARIO CENTRADA --- */
         .login-card {
-            background: white;
+            background: rgba(255, 255, 255, 0.95); /* Blanco ligeramente translúcido */
+            backdrop-filter: blur(10px); /* Efecto cristal moderno */
             padding: 3.5rem;
             border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             width: 100%;
-            max-width: 480px;
+            max-width: 450px;
+            z-index: 2; /* Por encima de la capa oscura */
         }
 
         .login-title {
@@ -59,15 +70,17 @@
             font-weight: 800;
             color: #2d3436;
             margin-bottom: 0.5rem;
+            text-align: center;
         }
 
         .login-subtitle {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: #D32F2F;
             margin-bottom: 2rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            text-align: center;
         }
         
         .form-control {
@@ -82,7 +95,6 @@
         }
 
         .btn-login {
-            background: #D32F2F;
             background: linear-gradient(45deg, #D32F2F, #b71c1c);
             border: none;
             padding: 14px;
@@ -98,30 +110,21 @@
             color: white;
         }
 
-        /* --- SECCIÓN DERECHA (Imagen) --- */
-        .login-image-section {
-            flex: 1.2;
-            background-image: url("{{ asset('img/ita_foto.png') }}"); 
-            background-size: cover;
-            background-position: center;
-            position: relative;
-        }
-        .login-image-section::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6));
-        }
-
         /* --- RESPONSIVIDAD (MÓVIL) --- */
-        @media (max-width: 991.98px) {
-            .login-image-section { display: none; }
-            .login-form-section { width: 100%; padding: 20px; background: white; }
-            .login-logo-container { position: static; margin-bottom: 30px; text-align: center; width: 100%; }
-            .login-logo-container img { height: 80px; }
-            .login-card { box-shadow: none; padding: 1rem; max-width: 100%; }
-            .login-title { font-size: 1.8rem; text-align: center; }
-            .login-subtitle { font-size: 1rem; text-align: center; }
+        @media (max-width: 768px) {
+            .login-logo-container { 
+                position: static; 
+                margin-bottom: 20px; 
+                text-align: center; 
+                width: 100%; 
+            }
+            .login-wrapper {
+                flex-direction: column;
+            }
+            .login-card { 
+                padding: 2.5rem 2rem; 
+                max-width: 100%; 
+            }
         }
     </style>
 </head>
@@ -129,62 +132,57 @@
 
     <div class="login-wrapper">
         
-        <div class="login-form-section">
-            
-            <div class="login-logo-container">
-                <img src="{{ asset('img/logo_ita.png') }}" alt="Logo ITA">
-            </div>
-
-            <div class="login-card animate__animated animate__fadeIn">
-                <div class="mb-4">
-                    <h1 class="login-title">BIENVENIDO</h1>
-                    <h2 class="login-subtitle">INSTITUTO TECNOLÓGICO AYACUCHO</h2>
-                </div>
-
-                @if ($errors->any())
-                    <div class="alert alert-danger border-0 shadow-sm mb-4 small">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Credenciales incorrectas.
-                    </div>
-                @endif
-
-                <form action="{{ route('login.post') }}" method="POST">
-                    @csrf
-                    
-                    <div class="mb-4">
-                        <label class="form-label text-secondary small fw-bold">CORREO INSTITUCIONAL</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-envelope text-muted"></i></span>
-                            <input type="email" class="form-control border-start-0 ps-0" name="email" placeholder="usuario@ita.edu.bo" required autofocus>
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label text-secondary small fw-bold">CONTRASEÑA</LAbel>
-                        <div class="input-group">
-                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-lock text-muted"></i></span>
-                            <input type="password" class="form-control border-start-0 ps-0" name="password" id="passwordInput" placeholder="••••••••" required>
-                            <button class="btn btn-outline-secondary border-start-0 border" type="button" id="togglePassword">
-                                <i class="fas fa-eye" id="passwordIcon"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="d-grid gap-2 pt-2">
-                        <button type="submit" class="btn btn-primary btn-login text-white">
-                            INICIAR SESIÓN
-                        </button>
-                    </div>
-
-                    <div class="text-center mt-4">
-                    <a href="{{ route('password.request') }}" class="text-decoration-none text-muted small ...">
-    ¿Olvidaste tu contraseña?
-</a>
-                    </div>
-                </form>
-            </div>
+        <div class="login-logo-container">
+            <img src="{{ asset('img/logo_ita.png') }}" alt="Logo ITA">
         </div>
 
-        <div class="login-image-section">
+        <div class="login-card animate__animated animate__fadeIn">
+            <div class="mb-4">
+                <h1 class="login-title">BIENVENIDO</h1>
+                <h2 class="login-subtitle">INSTITUTO TECNOLÓGICO AYACUCHO</h2>
             </div>
+
+            @if ($errors->any())
+                <div class="alert alert-danger border-0 shadow-sm mb-4 small">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Credenciales incorrectas.
+                </div>
+            @endif
+
+            <form action="{{ route('login.post') }}" method="POST">
+                @csrf
+                
+                <div class="mb-4">
+                    <label class="form-label text-secondary small fw-bold">CORREO INSTITUCIONAL</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-envelope text-muted"></i></span>
+                        <input type="email" class="form-control border-start-0 ps-0" name="email" placeholder="usuario@ita.edu.bo" required autofocus>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label text-secondary small fw-bold">CONTRASEÑA</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-lock text-muted"></i></span>
+                        <input type="password" class="form-control border-start-0 ps-0" name="password" id="passwordInput" placeholder="••••••••" required>
+                        <button class="btn btn-outline-secondary border-start-0 border" type="button" id="togglePassword">
+                            <i class="fas fa-eye" id="passwordIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 pt-2">
+                    <button type="submit" class="btn btn-primary btn-login text-white">
+                        INICIAR SESIÓN
+                    </button>
+                </div>
+
+                <div class="text-center mt-4">
+                    <a href="{{ route('password.request') }}" class="text-decoration-none text-muted small">
+                        ¿Olvidaste tu contraseña?
+                    </a>
+                </div>
+            </form>
+        </div>
 
     </div>
 
