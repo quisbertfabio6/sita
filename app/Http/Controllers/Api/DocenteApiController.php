@@ -57,6 +57,23 @@ class DocenteApiController extends Controller
             return response()->json(['success' => false, 'message' => 'El estudiante tiene licencia justificada hoy.'], 409);
         }
 
+        // MANTENER TU CÓDIGO ANTERIOR AQUÍ (Validaciones, buscar al estudiante, etc.)
+
+$materia = \App\Models\Materia::find($request->materia_id);
+$estadoCalculado = 'presente'; // Estado por defecto
+
+if ($materia && $materia->hora_inicio) {
+    // Convertimos las horas usando la librería Carbon de Laravel
+    $horaInicio = \Carbon\Carbon::parse($materia->hora_inicio);
+    $horaTolerancia = $horaInicio->copy()->addMinutes($materia->minutos_tolerancia);
+    $horaActual = \Carbon\Carbon::now();
+
+    // Si la hora actual es mayor a la hora de tolerancia, es un atraso
+    if ($horaActual->greaterThan($horaTolerancia)) {
+        $estadoCalculado = 'atraso';
+    }
+}
+
         // Guardar asistencia
         Asistencia::updateOrCreate(
             [
@@ -66,7 +83,7 @@ class DocenteApiController extends Controller
             ],
             [
                 'hora' => $request->hora,
-                'estado' => 'presente',
+                'estado' => '$estadoCalculado',
                 'es_sincronizado' => true,
             ]
         );

@@ -9,7 +9,7 @@ class Materia extends Model
 {
     use HasFactory;
     protected $table = 'materias';
-    protected $fillable = ['nombre', 'sigla', 'curso_id'];
+    protected $fillable = ['nombre', 'sigla', 'curso_id', 'hora_inicio', 'minutos_tolerancia'];
 
     public function curso() {
         return $this->belongsTo(Curso::class);

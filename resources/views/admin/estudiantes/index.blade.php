@@ -49,6 +49,33 @@
         </div>
     </div>
 
+    <!-- INICIO PANEL DE GESTIÓN ACADÉMICA -->
+    <div class="card mb-4 shadow-sm border-danger">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Control de Gestión Académica</h5>
+        </div>
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <!-- Formulario para iniciar nueva gestión -->
+            <form action="{{ route('gestiones.iniciar') }}" method="POST" class="d-flex align-items-center">
+                @csrf
+                <label for="anio" class="me-2 fw-bold">Abrir nueva gestión:</label>
+                <input type="number" name="anio" id="anio" class="form-control me-2" placeholder="Ej. 2026" required style="width: 120px;">
+                <button type="submit" class="btn btn-success" onclick="return confirm('¿Seguro que desea iniciar una nueva gestión? La anterior se cerrará automáticamente.');">
+                    Iniciar Año
+                </button>
+            </form>
+
+            <!-- Formulario para cerrar el sistema (vacaciones) -->
+            <form action="{{ route('gestiones.cerrar') }}" method="POST">
+                @csrf
+                <button type="submit" class="btn btn-secondary" onclick="return confirm('¿Está seguro de cerrar la gestión actual? Nadie podrá registrar asistencias.');">
+                    <i class="fas fa-lock"></i> Cerrar Gestión Actual
+                </button>
+            </form>
+        </div>
+    </div>
+    <!-- FIN PANEL DE GESTIÓN ACADÉMICA -->
+
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" style="border-radius: 10px;" role="alert">
             <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
@@ -92,7 +119,8 @@
                         </td>
                         <td>
                             <span class="badge bg-white text-dark border shadow-sm px-3 py-2" style="border-radius: 8px;">
-                                <i class="fas fa-chalkboard me-1 text-primary"></i> {{ $est->curso->nombre ?? 'N/A' }}
+                                <!-- AQUI CORREGIMOS EL ERROR DE CURSO ACTUAL -->
+                                <i class="fas fa-chalkboard me-1 text-primary"></i> {{ $est->cursoActual()->nombre ?? 'Sin Curso Activo' }}
                             </span>
                         </td>
                         <td class="text-muted fw-bold">{{ $est->matricula }}</td>
@@ -100,6 +128,15 @@
                             <span class="qr-badge"><i class="fas fa-qrcode text-dark me-2"></i>{{ $est->codigo_qr }}</span>
                         </td>
                         <td class="text-end pe-4">
+                            <!-- INICIO BOTÓN REGENERAR QR -->
+                            <form action="{{ route('estudiantes.regenerar_qr', $est->id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('¿Está seguro de revocar la tarjeta actual? El alumno necesitará una nueva credencial impresa.');">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-light text-warning shadow-sm rounded-circle me-1" style="width: 32px; height: 32px;" title="Revocar y Regenerar QR">
+                                    <i class="fas fa-qrcode"></i>
+                                </button>
+                            </form>
+                            <!-- FIN BOTÓN REGENERAR QR -->
+
                             <a href="{{ route('estudiantes.edit', $est->id) }}" class="btn btn-sm btn-light text-primary shadow-sm rounded-circle me-1" style="width: 32px; height: 32px;" title="Editar">
                                 <i class="fas fa-pen"></i>
                             </a>

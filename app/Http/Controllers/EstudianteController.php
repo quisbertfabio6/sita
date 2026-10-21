@@ -15,7 +15,7 @@ class EstudianteController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Estudiante::with(['usuario', 'curso']);
+        $query = Estudiante::with(['usuario']);
 
         // LÓGICA DEL BUSCADOR POR NOMBRE
         if ($request->has('buscar') && $request->buscar != '') {
@@ -126,5 +126,19 @@ class EstudianteController extends Controller
         $estudiante = Estudiante::findOrFail($id);
         $estudiante->usuario->delete();
         return redirect()->route('estudiantes.index')->with('success', 'Estudiante eliminado.');
+    }
+    // --- INICIO NUEVA FUNCIÓN: REVOCAR QR ---
+    public function regenerarQR($id)
+    {
+        $estudiante = \App\Models\Estudiante::findOrFail($id);
+        
+        // Generamos un nuevo código único (usando un prefijo y un identificador único aleatorio)
+        $nuevoCodigo = 'QR-' . strtoupper(uniqid());
+        
+        // Actualizamos el estudiante
+        $estudiante->codigo_qr = $nuevoCodigo;
+        $estudiante->save();
+
+        return redirect()->back()->with('success', 'El código QR anterior ha sido revocado. El nuevo código es: ' . $nuevoCodigo . '. Ya puede imprimir la nueva tarjeta.');
     }
 }

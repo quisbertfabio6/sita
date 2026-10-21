@@ -93,4 +93,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/estudiante/asistencias', [App\Http\Controllers\EstudiantePanelController::class, 'misAsistencias'])->name('estudiante.asistencias');
     Route::get('/estudiante/licencias', [App\Http\Controllers\EstudiantePanelController::class, 'misLicencias'])->name('estudiante.licencias');
     Route::get('/estudiante/reporte-personal', [App\Http\Controllers\ReporteController::class, 'generarHistorialPersonal'])->name('reportes.personal');
+
+    // --- RUTAS PARA GESTIÓN Y TARJETAS ---
+// Ruta para regenerar el código QR
+Route::post('/estudiantes/{id}/regenerar-qr', [App\Http\Controllers\EstudianteController::class, 'regenerarQR'])->name('estudiantes.regenerar_qr');
+
+// Rutas para los periodos académicos
+Route::post('/gestiones/iniciar', [App\Http\Controllers\GestionController::class, 'iniciarNuevaGestion'])->name('gestiones.iniciar');
+Route::post('/gestiones/cerrar', [App\Http\Controllers\GestionController::class, 'cerrarGestionActual'])->name('gestiones.cerrar');
+// -------------------------------------
 });
