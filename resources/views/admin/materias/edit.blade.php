@@ -37,6 +37,21 @@
                             </select>
                         </div>
 
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Hora de Inicio</label>
+                                <input type="time" name="hora_inicio" class="form-control form-control-lg" 
+                                       value="{{ $materia->hora_inicio ? \Carbon\Carbon::parse($materia->hora_inicio)->format('H:i') : '08:00' }}" required>
+                                <div class="form-text">Hora programada de entrada a clases.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tolerancia (Minutos)</label>
+                                <input type="number" name="minutos_tolerancia" class="form-control form-control-lg" 
+                                       value="{{ $materia->minutos_tolerancia ?? 15 }}" min="0" max="60" required>
+                                <div class="form-text">Minutos permitidos antes de marcar atraso.</div>
+                            </div>
+                        </div>
+
                         <div class="d-flex justify-content-between mt-5">
                             <a href="{{ route('materias.index') }}" class="btn btn-light border">Cancelar</a>
                             <button type="submit" class="btn btn-success fw-bold px-4">Actualizar</button>

@@ -11,7 +11,7 @@
                     <div>
                         <h4 class="mb-0 fw-bold">Hola, {{ Auth::user()->nombre_completo }}</h4>
                         <p class="text-muted mb-0">
-                            {{ $estudiante->curso->nombre ?? 'Sin Curso' }} | Matrícula: {{ $estudiante->matricula }}
+                        {{ $estudiante->inscripciones()->whereHas('gestion', fn($q) => $q->where('es_activa', true))->with('curso')->first()?->curso?->nombre ?? 'Sin Curso' }}
                         </p>
                     </div>
                     <div class="text-end d-none d-md-block">

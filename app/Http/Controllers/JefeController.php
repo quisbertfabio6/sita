@@ -31,7 +31,7 @@ class JefeController extends Controller
         return $mapa[$nombreLimpio] ?? $nombreLimpio;
     }
 
-    // 1. Dashboard Académico (CORREGIDO)
+    // 1. Dashboard Académico (CORREGIDO A INSCRIPCIONES)
     public function index()
     {
         $jefe = Auth::user()->jefeCarrera;
@@ -43,7 +43,7 @@ class JefeController extends Controller
         $kpis = [
             'licencias_pendientes' => 0, 
             'total_cursos' => 0,
-            'total_materias' => 0, // Agregamos esta clave que faltaba
+            'total_materias' => 0,
             'promedio_general' => 0
         ];
         $pieData = [0, 0, 0];
@@ -54,9 +54,9 @@ class JefeController extends Controller
             
             // --- A. KPIS (CONTADORES) ---
             
-            // 1. Licencias Pendientes (Filtrado)
+            // 1. Licencias Pendientes (Filtrado por inscripción -> curso)
             $kpis['licencias_pendientes'] = Licencia::where('estado', 'pendiente')
-                ->whereHas('estudiante.curso', function ($query) use ($carrerasAsignadas) {
+                ->whereHas('estudiante.inscripciones.curso', function ($query) use ($carrerasAsignadas) {
                     $query->where(function ($q) use ($carrerasAsignadas) {
                         foreach ($carrerasAsignadas as $carrera) {
                             $palabraClave = $this->obtenerPalabraClave($carrera);
@@ -65,7 +65,7 @@ class JefeController extends Controller
                     });
                 })->count();
 
-            // 2. Query Base de Cursos (Lo usamos para contar cursos y materias)
+            // 2. Query Base de Cursos
             $queryCursos = Curso::where(function ($q) use ($carrerasAsignadas) {
                 foreach ($carrerasAsignadas as $carrera) {
                     $palabraClave = $this->obtenerPalabraClave($carrera);
@@ -75,8 +75,7 @@ class JefeController extends Controller
 
             $kpis['total_cursos'] = $queryCursos->count();
 
-            // 3. Total Materias (Contamos las materias de esos cursos filtrados)
-            // Obtenemos los IDs de los cursos filtrados para contar sus materias
+            // 3. Total Materias
             $idsCursos = $queryCursos->pluck('id');
             $kpis['total_materias'] = Materia::whereIn('curso_id', $idsCursos)->count();
 
@@ -84,7 +83,7 @@ class JefeController extends Controller
             // --- B. DATOS PARA GRÁFICOS ---
 
             // 4. Gráfico Dona: Licencias por Estado
-            $conteoLicencias = Licencia::whereHas('estudiante.curso', function ($query) use ($carrerasAsignadas) {
+            $conteoLicencias = Licencia::whereHas('estudiante.inscripciones.curso', function ($query) use ($carrerasAsignadas) {
                     $query->where(function ($q) use ($carrerasAsignadas) {
                         foreach ($carrerasAsignadas as $carrera) {
                             $palabraClave = $this->obtenerPalabraClave($carrera);
@@ -135,7 +134,7 @@ class JefeController extends Controller
         return view('jefe.dashboard', compact('kpis', 'pieData', 'barLabels', 'barData'));
     }
 
-    // 2. Ver lista de licencias (MANTENEMOS TU LÓGICA)
+    // 2. Ver lista de licencias
     public function licencias()
     {
         $jefe = Auth::user()->jefeCarrera;
@@ -145,8 +144,8 @@ class JefeController extends Controller
         } else {
             $carreras = explode(',', $jefe->carrera_asignada);
 
-            $licencias = Licencia::with(['estudiante.usuario', 'estudiante.curso'])
-                ->whereHas('estudiante.curso', function ($query) use ($carreras) {
+            $licencias = Licencia::with(['estudiante.usuario', 'estudiante.inscripciones.curso'])
+                ->whereHas('estudiante.inscripciones.curso', function ($query) use ($carreras) {
                     $query->where(function ($q) use ($carreras) {
                         foreach ($carreras as $carrera) {
                             $palabraClave = $this->obtenerPalabraClave($carrera);
@@ -223,7 +222,7 @@ class JefeController extends Controller
             $query->where('estado', $request->estado);
         }
 
-        $query->whereHas('estudiante.curso', function ($q_curso) use ($carrerasAsignadas) {
+        $query->whereHas('estudiante.inscripciones.curso', function ($q_curso) use ($carrerasAsignadas) {
             $q_curso->where(function ($q) use ($carrerasAsignadas) {
                 foreach ($carrerasAsignadas as $carrera) {
                     $palabraClave = $this->obtenerPalabraClave(trim($carrera));
@@ -232,7 +231,7 @@ class JefeController extends Controller
             });
         });
 
-        $licencias = $query->with(['estudiante.usuario', 'estudiante.curso', 'jefeCarrera']) 
+        $licencias = $query->with(['estudiante.usuario', 'estudiante.inscripciones.curso', 'jefeCarrera']) 
                             ->orderBy('fecha_inicio', 'asc')
                             ->get();
         

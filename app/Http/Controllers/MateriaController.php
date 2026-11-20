@@ -32,7 +32,9 @@ class MateriaController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:100',
             'sigla' => 'nullable|string|max:20',
-            'curso_id' => 'required|exists:cursos,id', 
+            'curso_id' => 'required|exists:cursos,id',
+            'hora_inicio' => 'required',
+            'minutos_tolerancia' => 'required|integer|min:0|max:60',
         ]);
 
         Materia::create($request->all());
@@ -53,6 +55,8 @@ class MateriaController extends Controller
             'nombre' => 'required|string|max:100',
             'sigla' => 'nullable|string|max:20',
             'curso_id' => 'required|exists:cursos,id',
+            'hora_inicio' => 'required',
+            'minutos_tolerancia' => 'required|integer|min:0|max:60',
         ]);
 
         $materia = Materia::findOrFail($id);

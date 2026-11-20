@@ -38,7 +38,7 @@
         </tr>
         <tr>
             <td class="label">CURSO:</td>
-            <td>{{ $estudiante->curso->nombre }}</td>
+            <td>{{ $curso->nombre ?? $estudiante->inscripciones()->whereHas('gestion', fn($q) => $q->where('es_activa', true))->with('curso')->first()?->curso?->nombre ?? 'Sin Curso Asignado' }}</td>
         </tr>
         <tr>
             <td class="label">FECHA REPORTE:</td>
