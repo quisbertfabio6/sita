@@ -12,7 +12,9 @@ class Curso extends Model
     protected $fillable = ['nombre', 'gestion'];
 
     public function estudiantes() {
-        return $this->hasMany(Estudiante::class);
+        return $this->belongsToMany(Estudiante::class, 'inscripciones', 'curso_id', 'estudiante_id')
+            ->withPivot(['gestion_id', 'estado'])
+            ->withTimestamps();
     }
 
     public function materias() {
