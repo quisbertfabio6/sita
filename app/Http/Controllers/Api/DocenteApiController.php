@@ -9,6 +9,7 @@ use App\Models\Asistencia;
 use App\Models\Licencia;
 use App\Models\Materia;
 use App\Models\Estudiante;
+use App\Models\Gestion;
 
 class DocenteApiController extends Controller
 {
@@ -95,90 +96,123 @@ if ($materia && $materia->hora_inicio) {
         ]);
     }
 
-// 3. Obtener lista INTELIGENTE (Versión Blindada)
-public function listaEstudiantesConEstadistica(Request $request)
-{
-    $request->validate([
-        'materia_id' => 'required|exists:materias,id',
-    ]);
+// 3. Lista de control del docente: solo estudiantes de la gestion activa.
+    public function listaEstudiantesConEstadistica(Request $request)
+    {
+        $request->validate([
+            'materia_id' => 'required|exists:materias,id',
+            'fecha' => 'nullable|date_format:Y-m-d',
+        ]);
 
-    $materiaId = $request->materia_id;
-    $fecha = $request->fecha ?? date('Y-m-d'); // Hoy
+        $materia = Materia::findOrFail($request->materia_id);
+        $docente = $request->user()?->docente;
 
-    $materia = Materia::find($materiaId);
-    
-    // Estadísticas
-    $totalClases = Asistencia::where('materia_id', $materiaId)->distinct('fecha')->count();
-    if ($totalClases == 0) $totalClases = 1;
+        if (!$docente || !$docente->materias()->where('materias.id', $materia->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Materia no asignada al docente.',
+            ], 403);
+        }
 
-    $estudiantes = $materia->curso->estudiantes()->with('usuario')->get();
+        $gestionActiva = Gestion::where('es_activa', true)->first();
+        if (!$gestionActiva) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
 
-    $lista = $estudiantes->map(function($estudiante) use ($materiaId, $fecha, $totalClases) {
-        
-        // 1. Verificar si tiene LICENCIA APROBADA REAL (La autoridad máxima)
-        $tieneLicenciaAprobada = Licencia::where('estudiante_id', $estudiante->id)
-            ->where('estado', 'aprobada') // <--- Solo si el Jefe dijo SI
-            ->whereDate('fecha_inicio', '<=', $fecha)
-            ->whereDate('fecha_fin', '>=', $fecha)
-            ->exists();
+        $fecha = $request->input('fecha') ?: now()->toDateString();
+        $anio = $gestionActiva->anio;
 
-        // 2. Buscar qué hay registrado en la asistencia
-        $asistenciaHoy = Asistencia::where('estudiante_id', $estudiante->id)
-                            ->where('materia_id', $materiaId)
-                            ->where('fecha', $fecha)
-                            ->first();
+        // La pantalla movil consulta la gestion actual, no el historial de otros anios.
+        if (substr($fecha, 0, 4) !== $anio) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La fecha no pertenece a la gestion academica activa.',
+            ], 422);
+        }
 
-        $estadoFinal = null;
+        $estudiantes = $materia->curso->estudiantes()
+            ->wherePivot('gestion_id', $gestionActiva->id)
+            ->wherePivot('estado', 'Activo')
+            ->with('usuario')
+            ->get();
 
-        if ($tieneLicenciaAprobada) {
-            // Si hay licencia aprobada, esto le gana a todo.
-            $estadoFinal = 'licencia';
-        } 
-        elseif ($asistenciaHoy) {
-            // Si NO tiene licencia aprobada, pero hay un registro...
-            if ($asistenciaHoy->estado == 'licencia') {
-                // ¡AQUÍ ESTÁ EL TRUCO! 
-                // Si la asistencia dice 'licencia' pero arriba vimos que NO hay aprobación...
-                // Significa que es un dato viejo o erróneo. Lo ignoramos.
-                $estadoFinal = null; 
-            } else {
-                // Si es presente, falta o atraso, lo respetamos.
+        // Contar fechas distintas de la gestion activa, no registros individuales.
+        $totalClases = Asistencia::where('materia_id', $materia->id)
+            ->whereYear('fecha', $anio)
+            ->distinct()
+            ->count('fecha');
+
+        // Consultas agrupadas para evitar una consulta por cada alumno.
+        $ids = $estudiantes->pluck('id');
+        $asistenciasPorEstudiante = Asistencia::where('materia_id', $materia->id)
+            ->whereYear('fecha', $anio)
+            ->whereIn('estudiante_id', $ids)
+            ->get()
+            ->groupBy('estudiante_id');
+
+        $licenciasPorEstudiante = Licencia::where('estado', 'aprobada')
+            ->whereIn('estudiante_id', $ids)
+            ->whereDate('fecha_inicio', '<=', $anio . '-12-31')
+            ->whereDate('fecha_fin', '>=', $anio . '-01-01')
+            ->get()
+            ->groupBy('estudiante_id');
+
+        $lista = $estudiantes->map(function ($estudiante) use (
+            $fecha,
+            $totalClases,
+            $asistenciasPorEstudiante,
+            $licenciasPorEstudiante
+        ) {
+            $asistencias = $asistenciasPorEstudiante->get($estudiante->id, collect());
+            $licencias = $licenciasPorEstudiante->get($estudiante->id, collect());
+
+            $tieneLicenciaEnFecha = function ($dia) use ($licencias) {
+                return $licencias->contains(function ($licencia) use ($dia) {
+                    return $licencia->fecha_inicio <= $dia && $licencia->fecha_fin >= $dia;
+                });
+            };
+
+            $asistenciaHoy = $asistencias->firstWhere('fecha', $fecha);
+            if ($tieneLicenciaEnFecha($fecha)) {
+                $estadoFinal = 'licencia';
+            } elseif ($asistenciaHoy && $asistenciaHoy->estado !== 'licencia') {
                 $estadoFinal = $asistenciaHoy->estado;
+            } else {
+                $estadoFinal = null;
             }
-        }
 
-        // C. Calcular Porcentaje
-        $asistenciasTotales = Asistencia::where('estudiante_id', $estudiante->id)
-                            ->where('materia_id', $materiaId)
-                            ->get();
+            $puntos = $asistencias->sum(function ($asistencia) use ($tieneLicenciaEnFecha) {
+                if ($asistencia->estado === 'presente') {
+                    return 1;
+                }
+                if ($asistencia->estado === 'atraso') {
+                    return 0.5;
+                }
+                if ($asistencia->estado === 'licencia' && $tieneLicenciaEnFecha($asistencia->fecha)) {
+                    return 1;
+                }
+                return 0;
+            });
 
-        $puntos = 0;
-        foreach ($asistenciasTotales as $asis) {
-            if ($asis->estado == 'presente' || ($asis->estado == 'licencia' && $tieneLicenciaAprobada)) { 
-                // Solo sumamos puntos por licencia si sigue aprobada
-                $puntos += 1;
-            }
-            elseif ($asis->estado == 'atraso') $puntos += 0.5;
-        }
-        
-        $porcentaje = round(($puntos / $totalClases) * 100);
-        if ($porcentaje > 100) $porcentaje = 100;
+            $porcentaje = $totalClases > 0
+                ? min(100, (int) round(($puntos / $totalClases) * 100))
+                : 0;
 
-        return [
-            'id' => $estudiante->id,
-            'nombre' => $estudiante->usuario->nombre_completo,
-            'matricula' => $estudiante->matricula,
-            'estado_hoy' => $estadoFinal,
-            'porcentaje' => $porcentaje,
-            'riesgo' => $porcentaje < 80
-        ];
-    });
+            return [
+                'id' => $estudiante->id,
+                'nombre' => $estudiante->usuario->nombre_completo,
+                'matricula' => $estudiante->matricula,
+                'estado_hoy' => $estadoFinal,
+                'porcentaje' => $porcentaje,
+                'riesgo' => $totalClases > 0 && $porcentaje < 80,
+            ];
+        });
 
-    return response()->json([
-        'success' => true,
-        'data' => $lista
-    ]);
-}
+        return response()->json([
+            'success' => true,
+            'data' => $lista,
+        ]);
+    }
 
     // 4. Registrar cambio manual
     public function registrarManual(Request $request) {
@@ -214,15 +248,32 @@ public function listaEstudiantesConEstadistica(Request $request)
         return response()->json(['success' => true, 'message' => 'Estado actualizado']);
     }
 
-    // 5. OBTENER FECHAS DE CLASES
-    public function obtenerFechasClases(Request $request) {
+    // 5. Fechas registradas solo durante la gestion academica activa.
+    public function obtenerFechasClases(Request $request)
+    {
         $request->validate(['materia_id' => 'required|exists:materias,id']);
 
-        $fechas = Asistencia::where('materia_id', $request->materia_id)
-                    ->select('fecha')
-                    ->distinct()
-                    ->orderBy('fecha', 'desc')
-                    ->pluck('fecha');
+        $materia = Materia::findOrFail($request->materia_id);
+        $docente = $request->user()?->docente;
+
+        if (!$docente || !$docente->materias()->where('materias.id', $materia->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Materia no asignada al docente.',
+            ], 403);
+        }
+
+        $gestionActiva = Gestion::where('es_activa', true)->first();
+        if (!$gestionActiva) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $fechas = Asistencia::where('materia_id', $materia->id)
+            ->whereYear('fecha', $gestionActiva->anio)
+            ->select('fecha')
+            ->distinct()
+            ->orderBy('fecha', 'desc')
+            ->pluck('fecha');
 
         return response()->json(['success' => true, 'data' => $fechas]);
     }
