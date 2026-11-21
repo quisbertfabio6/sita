@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Imports\EstudiantesImport;
 use App\Models\Curso;
 use App\Models\Estudiante;
 use App\Models\Gestion;
@@ -159,4 +160,42 @@ class InscripcionesEstudiantesTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonCount(0, 'data');
     }
+    public function test_importacion_crea_inscripcion_en_gestion_activa(): void
+    {
+        Rol::create(['nombre' => 'estudiante']);
+        $gestion = Gestion::create(['anio' => '2026', 'es_activa' => true]);
+        $curso = Curso::create(['nombre' => 'Primero A', 'gestion' => '2026']);
+
+        (new EstudiantesImport())->model([
+            'nombre_completo' => 'Estudiante importado',
+            'email' => 'importado@sita.test',
+            'ci' => 'CI-IMPORTADO',
+            'matricula' => 'MAT-IMPORTADO',
+            'codigo_qr' => 'QR-IMPORTADO',
+            'id_curso' => $curso->id,
+        ]);
+
+        $estudiante = Estudiante::where('codigo_qr', 'QR-IMPORTADO')->firstOrFail();
+        $this->assertDatabaseHas('inscripciones', [
+            'estudiante_id' => $estudiante->id,
+            'curso_id' => $curso->id,
+            'gestion_id' => $gestion->id,
+        ]);
+    }
+
+    public function test_importacion_sin_gestion_activa_es_rechazada(): void
+    {
+        $curso = Curso::create(['nombre' => 'Primero A', 'gestion' => '2026']);
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        (new EstudiantesImport())->model([
+            'nombre_completo' => 'Estudiante importado',
+            'email' => 'importado@sita.test',
+            'ci' => 'CI-IMPORTADO',
+            'matricula' => 'MAT-IMPORTADO',
+            'codigo_qr' => 'QR-IMPORTADO',
+            'id_curso' => $curso->id,
+        ]);
+    }
+
 }
