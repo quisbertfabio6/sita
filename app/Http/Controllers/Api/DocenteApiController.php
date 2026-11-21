@@ -83,7 +83,7 @@ if ($materia && $materia->hora_inicio) {
             ],
             [
                 'hora' => $request->hora,
-                'estado' => '$estadoCalculado',
+                'estado' => $estadoCalculado,
                 'es_sincronizado' => true,
             ]
         );
