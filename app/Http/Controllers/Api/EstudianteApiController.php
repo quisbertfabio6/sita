@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage; // Necesario para borrar archivos
 use App\Models\Asistencia;
 use App\Models\Licencia;
 use App\Models\Estudiante;
+use App\Models\Gestion;
 
 class EstudianteApiController extends Controller
 {
@@ -107,8 +108,23 @@ class EstudianteApiController extends Controller
     {
         $estudiante = $request->user()->estudiante;
 
-        // Obtenemos las materias del curso del estudiante
-        $materias = $estudiante->curso->materias;
+        if (!$estudiante) {
+            return response()->json(['success' => false, 'message' => 'Perfil no encontrado'], 403);
+        }
+
+        // El curso se obtiene desde la inscripción de la gestión activa,
+        // ya que estudiantes.curso_id dejó de existir.
+        $gestionActivaId = Gestion::where('es_activa', true)->value('id');
+        $inscripcion = $gestionActivaId
+            ? $estudiante->inscripciones()
+                ->where('gestion_id', $gestionActivaId)
+                ->where('estado', 'Activo')
+                ->with('curso.materias')
+                ->first()
+            : null;
+
+        // Mantener el formato de respuesta esperado por Flutter.
+        $materias = $inscripcion?->curso?->materias ?? collect();
 
         $data = $materias->map(function($materia) use ($estudiante) {
             
