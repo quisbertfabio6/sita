@@ -2,10 +2,14 @@
 
 namespace App\Imports;
 
+use App\Models\Curso;
 use App\Models\Estudiante;
-use App\Models\Usuario;
+use App\Models\Gestion;
 use App\Models\Rol;
+use App\Models\Usuario;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
@@ -13,40 +17,47 @@ class EstudiantesImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
-        // Buscamos el rol de estudiante
-        $rolEstudiante = Rol::where('nombre', 'estudiante')->first();
-
-        // 1. Crear Usuario
-        $usuario = Usuario::create([
-            'nombre_completo' => $row['nombre_completo'],
-            'email'           => $row['email'],
-            // La contraseña por defecto será su CI
-            'password'        => Hash::make($row['ci']), 
-            'rol_id'          => $rolEstudiante->id,
-            'activo'          => true,
-        ]);
-
-        $estudiante = new Estudiante([
-            'user_id' => $usuario->id,
-            'ci' => $row['ci'],
-            'matricula' => $row['matricula'],
-            'codigo_qr' => $row['codigo_qr'],
-        ]);
-        $estudiante->save(); // Lo guardamos manualmente para obtener su ID
-    
-        // 3. Crear la Inscripción en la Gestión Activa
-        $gestionActiva = \App\Models\Gestion::where('es_activa', true)->first();
-        
-        if ($gestionActiva) {
-            \App\Models\Inscripcion::create([
-                'estudiante_id' => $estudiante->id,
-                'curso_id' => $row['id_curso'], // Asegúrate que el nombre coincide con tu Excel
-                'gestion_id' => $gestionActiva->id,
-                'estado' => 'Activo'
+        $gestionActiva = Gestion::where('es_activa', true)->first();
+        if (!$gestionActiva) {
+            throw ValidationException::withMessages([
+                'gestion' => 'Debe iniciar una gestión académica antes de importar estudiantes.',
             ]);
         }
-        
-        // Retornamos null para que la librería no intente guardar el estudiante por segunda vez
+
+        if (empty($row['id_curso']) || !Curso::whereKey($row['id_curso'])->exists()) {
+            throw ValidationException::withMessages([
+                'id_curso' => 'El curso indicado en el archivo no existe.',
+            ]);
+        }
+
+        $rolEstudiante = Rol::where('nombre', 'estudiante')->firstOrFail();
+
+        // Se guardan usuario, estudiante e inscripción juntos, o ninguno.
+        DB::transaction(function () use ($row, $rolEstudiante, $gestionActiva) {
+            $usuario = Usuario::create([
+                'nombre_completo' => $row['nombre_completo'],
+                'email' => $row['email'],
+                // Contraseña inicial heredada: pendiente de mejora de seguridad.
+                'password' => Hash::make($row['ci']),
+                'rol_id' => $rolEstudiante->id,
+                'activo' => true,
+            ]);
+
+            $estudiante = Estudiante::create([
+                'user_id' => $usuario->id,
+                'ci' => $row['ci'],
+                'matricula' => $row['matricula'],
+                'codigo_qr' => $row['codigo_qr'],
+            ]);
+
+            $estudiante->inscripciones()->create([
+                'curso_id' => $row['id_curso'],
+                'gestion_id' => $gestionActiva->id,
+                'estado' => 'Activo',
+            ]);
+        });
+
+        // El registro ya fue guardado; evitar que Excel intente guardarlo otra vez.
         return null;
-    } // <- Esta es la llave que faltaba para cerrar la función model()
-} // <- Y esta cierra la clase
+    }
+}

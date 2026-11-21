@@ -7,6 +7,8 @@ use App\Models\Estudiante;
 use App\Models\Usuario;
 use App\Models\Rol;
 use App\Models\Curso;
+use App\Models\Gestion;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Imports\EstudiantesImport; 
 use Maatwebsite\Excel\Facades\Excel; 
@@ -48,23 +50,37 @@ class EstudianteController extends Controller
             'curso_id' => 'required|exists:cursos,id',
         ]);
 
-        $rolEstudiante = Rol::where('nombre', 'estudiante')->first();
+        $gestionActiva = Gestion::where('es_activa', true)->first();
+        if (!$gestionActiva) {
+            return back()->withErrors([
+                'gestion' => 'Debe iniciar una gestión académica antes de registrar estudiantes.',
+            ])->withInput();
+        }
 
-        $usuario = Usuario::create([
-            'nombre_completo' => $request->nombre_completo,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'rol_id' => $rolEstudiante->id,
-            'activo' => true,
-        ]);
+        $rolEstudiante = Rol::where('nombre', 'estudiante')->firstOrFail();
 
-        Estudiante::create([
-            'user_id' => $usuario->id,
-            'curso_id' => $request->curso_id,
-            'ci' => $request->ci,
-            'matricula' => $request->matricula,
-            'codigo_qr' => $request->codigo_qr,
-        ]);
+        DB::transaction(function () use ($request, $rolEstudiante, $gestionActiva) {
+            $usuario = Usuario::create([
+                'nombre_completo' => $request->nombre_completo,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'rol_id' => $rolEstudiante->id,
+                'activo' => true,
+            ]);
+
+            $estudiante = Estudiante::create([
+                'user_id' => $usuario->id,
+                'ci' => $request->ci,
+                'matricula' => $request->matricula,
+                'codigo_qr' => $request->codigo_qr,
+            ]);
+
+            $estudiante->inscripciones()->create([
+                'curso_id' => $request->curso_id,
+                'gestion_id' => $gestionActiva->id,
+                'estado' => 'Activo',
+            ]);
+        });
 
         return redirect()->route('estudiantes.index')->with('success', 'Estudiante registrado correctamente.');
     }
@@ -74,6 +90,12 @@ class EstudianteController extends Controller
         $request->validate([
             'archivo_excel' => 'required|mimes:xlsx,csv',
         ]);
+
+        if (!Gestion::where('es_activa', true)->exists()) {
+            return back()->withErrors([
+                'gestion' => 'Debe iniciar una gestión académica antes de importar estudiantes.',
+            ]);
+        }
 
         try {
             Excel::import(new EstudiantesImport, $request->file('archivo_excel'));
@@ -87,7 +109,14 @@ class EstudianteController extends Controller
     {
         $estudiante = Estudiante::findOrFail($id);
         $cursos = Curso::all();
-        return view('admin.estudiantes.edit', compact('estudiante', 'cursos'));
+        $gestionActiva = Gestion::where('es_activa', true)->first();
+        $inscripcionActiva = $gestionActiva
+            ? $estudiante->inscripciones()->where('gestion_id', $gestionActiva->id)->first()
+            : null;
+
+        return view('admin.estudiantes.edit', compact(
+            'estudiante', 'cursos', 'gestionActiva', 'inscripcionActiva'
+        ));
     }
 
     public function update(Request $request, $id)
@@ -102,21 +131,36 @@ class EstudianteController extends Controller
             'codigo_qr' => 'required|string|unique:estudiantes,codigo_qr,'.$estudiante->id,
         ]);
 
-        $usuario->update([
-            'nombre_completo' => $request->nombre_completo,
-            'email' => $request->email,
-        ]);
-        
-        if ($request->filled('password')) {
-            $usuario->update(['password' => Hash::make($request->password)]);
+        $gestionActiva = Gestion::where('es_activa', true)->first();
+        if (!$gestionActiva) {
+            return back()->withErrors([
+                'gestion' => 'Debe iniciar una gestión académica antes de modificar la inscripción.',
+            ])->withInput();
         }
 
-        $estudiante->update([
-            'curso_id' => $request->curso_id,
-            'ci' => $request->ci,
-            'matricula' => $request->matricula,
-            'codigo_qr' => $request->codigo_qr,
-        ]);
+        DB::transaction(function () use ($request, $estudiante, $usuario, $gestionActiva) {
+            $usuario->update([
+                'nombre_completo' => $request->nombre_completo,
+                'email' => $request->email,
+            ]);
+
+            if ($request->filled('password')) {
+                $usuario->update(['password' => Hash::make($request->password)]);
+            }
+
+            $estudiante->update([
+                'ci' => $request->ci,
+                'matricula' => $request->matricula,
+                'codigo_qr' => $request->codigo_qr,
+            ]);
+
+            // Modificar solo la inscripción de la gestión activa.
+            // Las inscripciones de gestiones anteriores se conservan.
+            $estudiante->inscripciones()->updateOrCreate(
+                ['gestion_id' => $gestionActiva->id],
+                ['curso_id' => $request->curso_id, 'estado' => 'Activo']
+            );
+        });
 
         return redirect()->route('estudiantes.index')->with('success', 'Estudiante actualizado.');
     }
