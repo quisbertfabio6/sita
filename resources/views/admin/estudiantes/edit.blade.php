@@ -12,6 +12,12 @@
                 </div>
                 <div class="card-body p-4">
                     
+                    @if (!$gestionActiva)
+                        <div class="alert alert-warning">
+                            No hay una gestión académica activa. Inicie una gestión antes de actualizar estudiantes.
+                        </div>
+                    @endif
+
                     <form action="{{ route('estudiantes.update', $estudiante->id) }}" method="POST">
                         @csrf @method('PUT')
 
@@ -44,7 +50,7 @@
                                 <label class="form-label fw-bold">Asignar Curso</label>
                                 <select name="curso_id" class="form-select" required>
                                     @foreach($cursos as $curso)
-                                        <option value="{{ $curso->id }}" {{ $estudiante->curso_id == $curso->id ? 'selected' : '' }}>
+                                        <option value="{{ $curso->id }}" {{ old('curso_id', $inscripcionActiva?->curso_id) == $curso->id ? 'selected' : '' }}>
                                             {{ $curso->nombre }}
                                         </option>
                                     @endforeach
@@ -69,7 +75,7 @@
 
                         <div class="d-flex justify-content-between mt-5">
                             <a href="{{ route('estudiantes.index') }}" class="btn btn-light border">Cancelar</a>
-                            <button type="submit" class="btn btn-warning text-dark fw-bold px-4">Actualizar</button>
+                            <button type="submit" class="btn btn-warning text-dark fw-bold px-4" {{ !$gestionActiva ? 'disabled' : '' }}>Actualizar</button>
                         </div>
                     </form>
                 </div>
