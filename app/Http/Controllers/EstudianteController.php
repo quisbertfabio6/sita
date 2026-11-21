@@ -91,6 +91,12 @@ class EstudianteController extends Controller
             'archivo_excel' => 'required|mimes:xlsx,csv',
         ]);
 
+        if (!Gestion::where('es_activa', true)->exists()) {
+            return back()->withErrors([
+                'gestion' => 'Debe iniciar una gestión académica antes de importar estudiantes.',
+            ]);
+        }
+
         try {
             Excel::import(new EstudiantesImport, $request->file('archivo_excel'));
             return redirect()->route('estudiantes.index')->with('success', '¡Importación masiva completada!');
