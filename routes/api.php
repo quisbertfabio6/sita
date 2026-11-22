@@ -26,7 +26,8 @@ Route::post('/login', function (Request $request) {
     }
 
     $user->tokens()->delete();
-    $token = $user->createToken($request->device_name, ['*'], now()->addDays(30))->plainTextToken;
+    $minutosValidez = max(1, (int) config('sanctum.expiration', 43200));
+    $token = $user->createToken($request->device_name, ['*'], now()->addMinutes($minutosValidez))->plainTextToken;
 
     return response()->json([
         'token' => $token,
