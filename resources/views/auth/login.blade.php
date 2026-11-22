@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <script>
+        (function () {
+            try {
+                document.documentElement.setAttribute(
+                    'data-sita-theme',
+                    localStorage.getItem('sita-web-theme') === 'dark' ? 'dark' : 'light'
+                );
+            } catch (_) {
+                document.documentElement.setAttribute('data-sita-theme', 'light');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Acceso SITA - Instituto Tecnológico Ayacucho</title>
@@ -127,10 +139,16 @@
             }
         }
     </style>
+    <link href="{{ asset('css/sita-dark.css') }}" rel="stylesheet">
 </head>
 <body>
 
     <div class="login-wrapper">
+        <button type="button" class="sita-theme-switch login-theme-switch"
+            data-sita-theme-toggle aria-label="Activar modo oscuro" aria-pressed="false">
+            <i class="fas fa-moon" data-sita-theme-icon aria-hidden="true"></i>
+            <span data-sita-theme-text>Modo oscuro</span>
+        </button>
         
         <div class="login-logo-container">
             <img src="{{ asset('img/logo_ita.png') }}" alt="Logo ITA">
@@ -205,5 +223,6 @@
             });
         });
     </script>
+    <script src="{{ asset('js/sita-theme.js') }}"></script>
 </body>
 </html>
