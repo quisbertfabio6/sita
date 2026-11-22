@@ -2,7 +2,7 @@
 
 ## Qué se respalda
 
-El respaldo es **completo**: guarda todas las tablas de MySQL/MariaDB (incluidas las gestiones anteriores), y los archivos de \`storage/app/public\` y \`storage/app/private\` (excluyendo los propios respaldos).
+El respaldo es **completo**: guarda todas las tablas de MySQL/MariaDB (incluidas las gestiones anteriores), y los archivos de `storage/app/public` y `storage/app/private` (excluyendo los propios respaldos).
 
 No es una exportación de un solo año. Cerrar una gestión no elimina sus datos, pero **tampoco genera automáticamente** un respaldo.
 
@@ -14,54 +14,54 @@ Los ZIP contienen información personal y hashes de contraseñas existentes; **n
 2. Abrir **Respaldos** en el menú superior.
 3. Pulsar **Generar copia completa** y esperar a que termine.
 4. Descargar el ZIP de la tabla y guardarlo en un medio seguro, distinto al disco del servidor.
-5. Comprobar que contiene \`base_de_datos.sql\`, \`manifiesto.json\`, \`LEEME.txt\` y, si existen, \`archivos/public/...\` y \`archivos/private/...\`.
+5. Comprobar que contiene `base_de_datos.sql`, `manifiesto.json`, `LEEME.txt` y, si existen, `archivos/public/...` y `archivos/private/...`.
 
-Los archivos se guardan en \`storage/app/private/sita-backups/\`, fuera de \`public/\`. Solo las rutas con rol administrador permiten descargarlos. Cada ZIP tiene un archivo \`.sha256\` junto a él para verificar su integridad.
+Los archivos se guardan en `storage/app/private/sita-backups/`, fuera de `public/`. Solo las rutas con rol administrador permiten descargarlos. Cada ZIP tiene un archivo `.sha256` junto a él para verificar su integridad.
 
 ## Requisitos
 
 - Laravel con conexión **MySQL o MariaDB** (no SQLite para esta función).
-- PHP con extensión \`zip\` habilitada.
-- Herramienta \`mysqldump\` disponible en PATH, o configurada mediante \`SITA_MYSQLDUMP_BIN\` en \`.env\`.
-- Permiso de escritura en \`storage/app/private\` y espacio libre suficiente.
+- PHP con extensión `zip` habilitada.
+- Herramienta `mysqldump` disponible en PATH, o configurada mediante `SITA_MYSQLDUMP_BIN` en `.env`.
+- Permiso de escritura en `storage/app/private` y espacio libre suficiente.
 
 ### Laragon / Windows
 
 Desde Git Bash, comprobar:
 
-\`\`\`bash
+```bash
 php -m | grep -i zip
 command -v mysqldump
-\`\`\`
+```
 
-Si \`mysqldump\` no está en PATH, buscar \`mysqldump.exe\` dentro de la carpeta MySQL de Laragon y añadir **solo su ruta de ejecutable** a \`.env\`:
+Si `mysqldump` no está en PATH, buscar `mysqldump.exe` dentro de la carpeta MySQL de Laragon y añadir **solo su ruta de ejecutable** a `.env`:
 
-\`\`\`dotenv
+```dotenv
 SITA_MYSQLDUMP_BIN="C:/laragon/bin/mysql/tu-version/bin/mysqldump.exe"
-\`\`\`
+```
 
-Cambiar \`tu-version\` por la carpeta real; no copiar una ruta de ejemplo sin verificarla. Ejecutar \`php artisan config:clear\` después de cambiar \`.env\`.
+Cambiar `tu-version` por la carpeta real; no copiar una ruta de ejemplo sin verificarla. Ejecutar `php artisan config:clear` después de cambiar `.env`.
 
 ### Alternativa para copias grandes
 
 Para evitar límites de tiempo del navegador:
 
-\`\`\`bash
+```bash
 php artisan sita:respaldo
-\`\`\`
+```
 
 La copia aparecerá en el listado web y podrá descargarse allí. No requiere programador de tareas ni cola de trabajos.
 
 ## Seguridad, integridad y recuperación
 
-- **Nunca** poner los ZIP en \`public/\`, compartirlos públicamente ni subirlos a GitHub.
+- **Nunca** poner los ZIP en `public/`, compartirlos públicamente ni subirlos a GitHub.
 - El ZIP no está cifrado. Guardarlo en almacenamiento cifrado y con acceso restringido.
-- El archivo \`.sha256\` permite verificar alteraciones accidentales del ZIP.
+- El archivo `.sha256` permite verificar alteraciones accidentales del ZIP.
 - Para recuperar información, **probar primero** en una base de datos MySQL/MariaDB y un directorio de almacenamiento separados.
-- Importar \`base_de_datos.sql\` en la base de pruebas, copiar \`archivos/public\` a \`storage/app/public\` y \`archivos/private\` a \`storage/app/private\`, y comprobar documentos y registros.
-- **No** reemplazar \`.env\` ni \`APP_KEY\`. No restaurar sobre producción sin plan de recuperación y aprobación expresa.
+- Importar `base_de_datos.sql` en la base de pruebas, copiar `archivos/public` a `storage/app/public` y `archivos/private` a `storage/app/private`, y comprobar documentos y registros.
+- **No** reemplazar `.env` ni `APP_KEY`. No restaurar sobre producción sin plan de recuperación y aprobación expresa.
 - El sistema **no ofrece restauración automática** y no elimina gestiones ni copias existentes.
-- \`mysqldump --single-transaction\` proporciona consistencia para tablas transaccionales (InnoDB). Los adjuntos se copian después; generar respaldos en un periodo de baja actividad para reducir diferencias entre BD y archivos.
+- `mysqldump --single-transaction` proporciona consistencia para tablas transaccionales (InnoDB). Los adjuntos se copian después; generar respaldos en un periodo de baja actividad para reducir diferencias entre BD y archivos.
 
 ## Pruebas antes de fusionar
 
