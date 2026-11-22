@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Asistencia;
 use App\Models\Licencia;
 use App\Models\SubcategoriaLicencia;
+use App\Models\Estudiante;
+use App\Services\CupoLicenciasSemestralService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class EstudiantePanelController extends Controller
@@ -70,7 +73,7 @@ class EstudiantePanelController extends Controller
     // =================================================
 
     // 4. Guardar Licencia desde la App
-    public function guardarLicencia(Request $request)
+    public function guardarLicencia(Request $request, CupoLicenciasSemestralService $cupoService)
     {
         // Compatibilidad: la app anterior sigue enviando solo "motivo".
         // La app nueva enviara categoria_id + subcategoria_id y detalle opcional.
@@ -99,13 +102,6 @@ class EstudiantePanelController extends Controller
             return response()->json(['message' => 'No tienes perfil de estudiante asignado'], 403);
         }
 
-        // Manejo del archivo adjunto
-        $rutaArchivo = null;
-        if ($request->hasFile('archivo')) {
-            // Guarda en 'storage/app/public/licencias'
-            $rutaArchivo = $request->file('archivo')->store('licencias', 'public');
-        }
-
         // El campo motivo nunca queda vacio, incluso si el estudiante
         // selecciona una subcategoria sin escribir detalle adicional.
         $subcategoria = isset($datos['subcategoria_id'])
@@ -116,23 +112,44 @@ class EstudiantePanelController extends Controller
             $motivo = $subcategoria?->nombre;
         }
 
-        // Crear el registro en la BD
-        Licencia::create([
-            'estudiante_id' => $estudiante->id,
-            'jefe_carrera_id' => null, // Pendiente de revisión
-            'motivo' => $motivo,
-            'categoria_id' => $datos['categoria_id'] ?? null,
-            'subcategoria_id' => $datos['subcategoria_id'] ?? null,
-            'fecha_inicio' => $request->fecha_inicio,
-            'fecha_fin' => $request->fecha_fin,
-            'archivo_adjunto' => $rutaArchivo,
-            'estado' => 'pendiente',
-        ]);
+        // Bloquear la fila del estudiante evita dos solicitudes simultaneas
+        // que puedan superar el limite. Tambien aplica a la app anterior.
+        return DB::transaction(function () use ($request, $datos, $estudiante, $motivo, $cupoService) {
+            Estudiante::whereKey($estudiante->id)->lockForUpdate()->firstOrFail();
 
-        // Responder JSON a la App
-        return response()->json([
-            'success' => true,
-            'message' => 'Solicitud registrada correctamente'
-        ], 201);
+            $cupo = $cupoService->resumen($estudiante->id);
+            if (!$cupo['puede_solicitar']) {
+                return response()->json([
+                    'success' => false,
+                    'codigo' => 'LIMITE_LICENCIAS_SEMESTRALES',
+                    'message' => 'Has alcanzado el límite de 3 licencias por semestre.',
+                    'cupo' => $cupo,
+                ], 409);
+            }
+
+            // Solo guardar archivos cuando todavia queda cupo.
+            $rutaArchivo = null;
+            if ($request->hasFile('archivo')) {
+                $rutaArchivo = $request->file('archivo')->store('licencias', 'public');
+            }
+
+            Licencia::create([
+                'estudiante_id' => $estudiante->id,
+                'jefe_carrera_id' => null,
+                'motivo' => $motivo,
+                'categoria_id' => $datos['categoria_id'] ?? null,
+                'subcategoria_id' => $datos['subcategoria_id'] ?? null,
+                'fecha_inicio' => $datos['fecha_inicio'],
+                'fecha_fin' => $datos['fecha_fin'],
+                'archivo_adjunto' => $rutaArchivo,
+                'estado' => 'pendiente',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Solicitud registrada correctamente',
+                'cupo' => $cupoService->resumen($estudiante->id),
+            ], 201);
+        });
     }
 }
