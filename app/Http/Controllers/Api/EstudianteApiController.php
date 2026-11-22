@@ -11,6 +11,7 @@ use App\Models\Licencia;
 use App\Models\Estudiante;
 use App\Models\Gestion;
 use App\Models\CategoriaLicencia;
+use App\Services\CupoLicenciasSemestralService;
 
 class EstudianteApiController extends Controller
 {
@@ -24,6 +25,20 @@ class EstudianteApiController extends Controller
             ->orderBy('orden')->orderBy('nombre')->get();
 
         return response()->json(['success' => true, 'data' => $categorias]);
+    }
+
+    // Cupo del semestre actual: pendientes y aprobadas consumen cupo.
+    public function cupoLicencias(Request $request, CupoLicenciasSemestralService $cupoService)
+    {
+        $estudiante = $request->user()->estudiante;
+        if (!$estudiante) {
+            return response()->json(['success' => false, 'message' => 'Perfil de estudiante no encontrado'], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $cupoService->resumen($estudiante->id),
+        ]);
     }
 
     // 1. Dashboard Principal (Resumen para la App)
