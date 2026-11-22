@@ -260,38 +260,86 @@ class DocenteApiController extends Controller
         ]);
     }
 
-    // 4. Registrar cambio manual
-    public function registrarManual(Request $request) {
-        
-        $fecha = date('Y-m-d');
+    // 4. Registro manual: verificar docente, materia y alumno antes de modificar asistencia.
+    public function registrarManual(Request $request)
+    {
+        $datos = $request->validate([
+            'estudiante_id' => 'required|integer|exists:estudiantes,id',
+            'materia_id' => 'required|integer|exists:materias,id',
+            'estado' => 'required|in:presente,atraso,falta',
+        ]);
 
-        // Verificar licencia APROBADA antes de guardar falta
-        if ($request->estado != 'licencia') {
-             $tieneLicencia = Licencia::where('estudiante_id', $request->estudiante_id)
-                ->where('estado', 'aprobada')
-                ->whereDate('fecha_inicio', '<=', $fecha)
-                ->whereDate('fecha_fin', '>=', $fecha)
-                ->exists();
+        $materia = Materia::findOrFail($datos['materia_id']);
+        $docente = $request->user()?->docente;
 
-             if ($tieneLicencia) {
-                 return response()->json(['success' => false, 'message' => 'Tiene licencia aprobada, no se puede cambiar.']);
-             }
+        if (!$docente || !$docente->materias()->where('materias.id', $materia->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Materia no asignada al docente.',
+            ], 403);
+        }
+
+        $gestionActiva = Gestion::where('es_activa', true)->first();
+        if (!$gestionActiva) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay una gestion academica activa.',
+            ], 422);
+        }
+
+        $fecha = now()->toDateString();
+        if (substr($fecha, 0, 4) !== (string) $gestionActiva->anio) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La fecha no corresponde a la gestion activa.',
+            ], 422);
+        }
+
+        $inscrito = Estudiante::whereKey($datos['estudiante_id'])
+            ->whereHas('inscripciones', function ($consulta) use ($materia, $gestionActiva) {
+                $consulta->where('curso_id', $materia->curso_id)
+                    ->where('gestion_id', $gestionActiva->id)
+                    ->where('estado', 'Activo');
+            })
+            ->exists();
+
+        if (!$inscrito) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El estudiante no esta inscrito en este curso durante la gestion activa.',
+            ], 422);
+        }
+
+        $tieneLicencia = Licencia::where('estudiante_id', $datos['estudiante_id'])
+            ->where('estado', 'aprobada')
+            ->whereDate('fecha_inicio', '<=', $fecha)
+            ->whereDate('fecha_fin', '>=', $fecha)
+            ->exists();
+
+        if ($tieneLicencia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El estudiante tiene licencia justificada en esa fecha.',
+            ], 409);
         }
 
         Asistencia::updateOrCreate(
             [
-                'estudiante_id' => $request->estudiante_id,
-                'materia_id' => $request->materia_id,
+                'estudiante_id' => $datos['estudiante_id'],
+                'materia_id' => $materia->id,
                 'fecha' => $fecha,
             ],
             [
-                'hora' => date('H:i:s'),
-                'estado' => $request->estado,
-                'es_sincronizado' => true
+                'hora' => now()->format('H:i:s'),
+                'estado' => $datos['estado'],
+                'es_sincronizado' => true,
             ]
         );
-        
-        return response()->json(['success' => true, 'message' => 'Estado actualizado']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Estado actualizado',
+        ]);
     }
 
     // 5. Fechas registradas solo durante la gestion academica activa.

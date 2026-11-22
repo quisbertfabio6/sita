@@ -21,7 +21,7 @@ Route::post('/login', function (Request $request) {
 
     $user = Usuario::where('email', $request->email)->first();
 
-    if (! $user || ! Hash::check($request->password, $user->password)) {
+    if (! $user || ! $user->activo || ! Hash::check($request->password, $user->password)) {
         return response()->json(['message' => 'Credenciales incorrectas'], 401);
     }
 
@@ -41,30 +41,26 @@ Route::get('/prueba', function () {
 });
 
 
-// --- RUTAS PROTEGIDAS (Solo con Token) ---
-Route::middleware('auth:sanctum')->group(function () {
-    
+// API privada: token Sanctum + cuenta activa + rol correspondiente.
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
 
-    // Aquí pondremos luego las rutas de Asistencia...
-
-    Route::middleware('auth:sanctum')->group(function () {
-        // ...
-        Route::post('/estudiante/licencias', [App\Http\Controllers\EstudiantePanelController::class, 'guardarLicencia']);
+    Route::middleware('role:docente')->group(function () {
+        Route::get('/docente/materias', [DocenteApiController::class, 'misMaterias']);
+        Route::post('/docente/registrar-qr', [DocenteApiController::class, 'registrarAsistencia']);
+        Route::post('/docente/lista-control', [DocenteApiController::class, 'listaEstudiantesConEstadistica']);
+        Route::post('/docente/registrar-manual', [DocenteApiController::class, 'registrarManual']);
+        Route::post('/docente/fechas-clases', [DocenteApiController::class, 'obtenerFechasClases']);
     });
 
-    Route::get('/docente/materias', [DocenteApiController::class, 'misMaterias']);
-
-    
-    Route::post('/docente/registrar-qr', [DocenteApiController::class, 'registrarAsistencia']);
-    Route::post('/docente/lista-control', [DocenteApiController::class, 'listaEstudiantesConEstadistica']);
-    Route::post('/docente/registrar-manual', [App\Http\Controllers\Api\DocenteApiController::class, 'registrarManual']);
-    Route::post('/docente/fechas-clases', [App\Http\Controllers\Api\DocenteApiController::class, 'obtenerFechasClases']);
-
-    Route::get('/estudiante/dashboard', [EstudianteApiController::class, 'dashboard']);
-    Route::get('/estudiante/mis-licencias', [EstudianteApiController::class, 'misLicencias']);
-    Route::get('/estudiante/materias', [EstudianteApiController::class, 'misMaterias']);
-    Route::delete('/estudiante/licencias/{id}', [EstudianteApiController::class, 'anularLicencia']);
+    Route::middleware('role:estudiante')->group(function () {
+        Route::post('/estudiante/licencias', [App\Http\Controllers\EstudiantePanelController::class, 'guardarLicencia']);
+        Route::get('/estudiante/dashboard', [EstudianteApiController::class, 'dashboard']);
+        Route::get('/estudiante/mis-licencias', [EstudianteApiController::class, 'misLicencias']);
+        Route::get('/estudiante/materias', [EstudianteApiController::class, 'misMaterias']);
+        Route::delete('/estudiante/licencias/{id}', [EstudianteApiController::class, 'anularLicencia']);
+    });
 });

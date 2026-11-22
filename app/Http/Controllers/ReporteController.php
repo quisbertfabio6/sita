@@ -75,6 +75,18 @@ class ReporteController extends Controller
         $gestion = $this->resolverGestion($request->input('gestion_id'));
         $materia = Materia::with(['curso', 'docentes.usuario'])->findOrFail($idMateria);
 
+        // Los docentes solo pueden generar PDFs de sus materias asignadas.
+        // El administrador conserva el acceso a los reportes de todas las materias.
+        $usuario = $request->user();
+        if ($usuario->rol?->nombre === 'docente') {
+            $docente = $usuario->docente;
+            abort_unless(
+                $docente && $docente->materias()->where('materias.id', $materia->id)->exists(),
+                403,
+                'Esta materia no esta asignada al docente.'
+            );
+        }
+
         [$datos, $totalClases] = $this->datosPorMateria(
             $materia,
             $gestion,

@@ -21,7 +21,8 @@ class AuthController extends Controller
         ]);
 
         // Intentar autenticar usando el guard por defecto (web)
-        if (Auth::attempt($credentials)) {
+        // Las cuentas desactivadas no pueden iniciar una nueva sesion.
+        if (Auth::attempt([...$credentials, 'activo' => true])) {
             $request->session()->regenerate();
 
             // Redirección según ROL
