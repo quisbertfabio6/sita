@@ -151,6 +151,11 @@
                                 <i class="fas fa-chart-bar me-1"></i> Reportes
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('respaldos.*') ? 'active' : '' }}" href="{{ route('respaldos.index') }}" @if(request()->routeIs('respaldos.*')) aria-current="page" @endif>
+                                <i class="fas fa-shield-alt me-1"></i> Respaldos
+                            </a>
+                        </li>
 
                     @elseif(Auth::user()->rol->nombre == 'jefe_carrera')
                         <li class="nav-item">
