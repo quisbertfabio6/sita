@@ -34,11 +34,12 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Contraseña Inicial</label>
                                 <div class="input-group">
-                                    <input type="password" name="password" class="form-control" id="passwordInput" required>
+                                    <input type="password" name="password" class="form-control" minlength="12" id="passwordInput" required>
                                     <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
+                                <small class="text-muted">Mínimo 12 caracteres, con letras y números.</small>
                             </div>
                         </div>
 
