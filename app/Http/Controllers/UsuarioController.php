@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Rol; 
 use Illuminate\Support\Facades\Hash; 
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rules\Password;
 use App\Models\Usuario;
 use App\Models\Docente;      
 use App\Models\JefeCarrera;  
@@ -44,7 +43,7 @@ class UsuarioController extends Controller
         $request->validate([
             'nombre_completo' => 'required|string|max:255',
             'email' => 'required|email|unique:usuarios,email',
-            'password' => ['required', Password::min(12)->letters()->numbers()],
+            'password' => 'required|min:6',
             'rol_id' => 'required|exists:roles,id'
         ]);
 
@@ -90,7 +89,6 @@ class UsuarioController extends Controller
         $request->validate([
             'nombre_completo' => 'required|string|max:255',
             'email' => 'required|email|unique:usuarios,email,'.$usuario->id,
-            'password' => ['nullable', Password::min(12)->letters()->numbers()],
             'rol_id' => 'required|exists:roles,id'
         ]);
 
@@ -104,11 +102,6 @@ class UsuarioController extends Controller
         }
 
         $usuario->save();
-
-        // Un cambio de contrasena invalida los tokens moviles anteriores.
-        if ($request->filled('password')) {
-            $usuario->tokens()->delete();
-        }
 
         $rol = Rol::find($request->rol_id);
 
