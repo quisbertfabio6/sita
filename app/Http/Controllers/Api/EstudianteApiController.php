@@ -10,9 +10,22 @@ use App\Models\Asistencia;
 use App\Models\Licencia;
 use App\Models\Estudiante;
 use App\Models\Gestion;
+use App\Models\CategoriaLicencia;
 
 class EstudianteApiController extends Controller
 {
+    // Catalogo activo para el selector de la aplicacion movil.
+    public function categoriasLicencia()
+    {
+        $categorias = CategoriaLicencia::where('activo', true)
+            ->with(['subcategorias' => function ($consulta) {
+                $consulta->where('activo', true)->orderBy('orden')->orderBy('nombre');
+            }])
+            ->orderBy('orden')->orderBy('nombre')->get();
+
+        return response()->json(['success' => true, 'data' => $categorias]);
+    }
+
     // 1. Dashboard Principal (Resumen para la App)
     public function dashboard(Request $request)
     {
@@ -37,7 +50,7 @@ class EstudianteApiController extends Controller
         }
 
         // Últimas 3 licencias para vista rápida
-        $ultimasLicencias = Licencia::where('estudiante_id', $estudiante->id)
+        $ultimasLicencias = Licencia::with(['categoria', 'subcategoria'])->where('estudiante_id', $estudiante->id)
                                     ->orderBy('created_at', 'desc')
                                     ->take(3)
                                     ->get();
@@ -63,7 +76,7 @@ class EstudianteApiController extends Controller
             return response()->json(['success' => false, 'message' => 'Perfil no encontrado']);
         }
 
-        $licencias = Licencia::where('estudiante_id', $estudiante->id)
+        $licencias = Licencia::with(['categoria', 'subcategoria'])->where('estudiante_id', $estudiante->id)
                             ->orderBy('created_at', 'desc')
                             ->get();
 
