@@ -92,8 +92,10 @@
             padding-bottom: 2rem;
         }
     </style>
+    <link href="{{ asset('css/sita-ui.css') }}" rel="stylesheet">
 </head>
-<body>
+<body class="sita-app">
+    <a class="sita-skip-link" href="#contenido-principal">Saltar al contenido principal</a>
 
     <nav class="navbar navbar-expand-lg navbar-ita sticky-top">
         <div class="container-fluid">
@@ -112,12 +114,12 @@
                     
                     @if(Auth::user()->rol->nombre == 'administrador')
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('admin.dashboard') }}">
+                            <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.dashboard')) aria-current="page" @endif>
                                 <i class="fas fa-home me-1"></i> Inicio
                             </a>
                         </li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="academicoMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle {{ request()->routeIs('cursos.*', 'materias.*', 'asignaciones.*') ? 'active' : '' }}" href="#" id="academicoMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-graduation-cap me-1"></i> Gestión Académica
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="academicoMenu">
@@ -127,52 +129,52 @@
                             </ul>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('usuarios.index') }}">
+                            <a class="nav-link {{ request()->routeIs('usuarios.index') ? 'active' : '' }}" href="{{ route('usuarios.index') }}" @if(request()->routeIs('usuarios.index')) aria-current="page" @endif>
                                 <i class="fas fa-users me-1"></i> Usuarios
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('reportes.index') }}">
+                            <a class="nav-link {{ request()->routeIs('reportes.index') ? 'active' : '' }}" href="{{ route('reportes.index') }}" @if(request()->routeIs('reportes.index')) aria-current="page" @endif>
                                 <i class="fas fa-chart-bar me-1"></i> Reportes
                             </a>
                         </li>
 
                     @elseif(Auth::user()->rol->nombre == 'jefe_carrera')
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('jefe.dashboard') }}">
+                            <a class="nav-link {{ request()->routeIs('jefe.dashboard') ? 'active' : '' }}" href="{{ route('jefe.dashboard') }}" @if(request()->routeIs('jefe.dashboard')) aria-current="page" @endif>
                                 <i class="fas fa-home me-1"></i> Inicio
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('jefe.licencias') }}">
+                            <a class="nav-link {{ request()->routeIs('jefe.licencias') ? 'active' : '' }}" href="{{ route('jefe.licencias') }}" @if(request()->routeIs('jefe.licencias')) aria-current="page" @endif>
                                 <i class="fas fa-file-signature me-1"></i> Licencias
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('jefe.reportes.index') }}">
+                            <a class="nav-link {{ request()->routeIs('jefe.reportes.index') ? 'active' : '' }}" href="{{ route('jefe.reportes.index') }}" @if(request()->routeIs('jefe.reportes.index')) aria-current="page" @endif>
                                 <i class="fas fa-chart-bar me-1"></i> Reportes
                             </a>
                         </li>
 
                     @elseif(Auth::user()->rol->nombre == 'docente')
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('docente.dashboard') }}">
+                            <a class="nav-link {{ request()->routeIs('docente.dashboard') ? 'active' : '' }}" href="{{ route('docente.dashboard') }}" @if(request()->routeIs('docente.dashboard')) aria-current="page" @endif>
                                 <i class="fas fa-home me-1"></i> Inicio
                             </a>
                         </li>
                         @elseif(Auth::user()->rol->nombre == 'estudiante')
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('estudiante.dashboard') }}">
+                            <a class="nav-link {{ request()->routeIs('estudiante.dashboard') ? 'active' : '' }}" href="{{ route('estudiante.dashboard') }}" @if(request()->routeIs('estudiante.dashboard')) aria-current="page" @endif>
                                 <i class="fas fa-home me-1"></i> Inicio
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('estudiante.asistencias') }}">
+                            <a class="nav-link {{ request()->routeIs('estudiante.asistencias') ? 'active' : '' }}" href="{{ route('estudiante.asistencias') }}" @if(request()->routeIs('estudiante.asistencias')) aria-current="page" @endif>
                                 <i class="fas fa-user-check me-1"></i> Mis Asistencias
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('estudiante.licencias') }}">
+                            <a class="nav-link {{ request()->routeIs('estudiante.licencias') ? 'active' : '' }}" href="{{ route('estudiante.licencias') }}" @if(request()->routeIs('estudiante.licencias')) aria-current="page" @endif>
                                 <i class="fas fa-file-medical me-1"></i> Mis Licencias
                             </a>
                         </li>
@@ -204,7 +206,7 @@
         </div>
     </nav>
 
-    <main class="main-content">
+    <main class="main-content" id="contenido-principal" tabindex="-1">
         <div class="container-fluid px-4">
             @yield('contenido')
         </div>
