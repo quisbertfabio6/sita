@@ -179,3 +179,212 @@ html[data-sita-theme="dark"] .login-wrapper::before {
 @media (prefers-reduced-motion: reduce) {
     .sita-theme-switch { transition: none; }
 }
+
+
+/*
+ * Ajustes de legibilidad y consistencia para paneles administrativos.
+ * Se aplican solo cuando el usuario activa el modo oscuro.
+ * Corrige indicadores KPI, tablas, buscadores, importación, etiquetas y acciones.
+ */
+html[data-sita-theme="dark"] {
+    --sita-dark-card: #1e2a3b;
+    --sita-dark-row: #26364b;
+    --sita-dark-row-hover: #30445c;
+    --sita-dark-line: #40536c;
+    --sita-dark-ink: #f1f5fc;
+    --sita-dark-muted: #c4d0e0;
+}
+
+/* Tarjetas con separación y jerarquía visual, sin alterar el modo claro. */
+html[data-sita-theme="dark"] .sita-app .main-content .soft-card {
+    background: linear-gradient(145deg, #1f2d40 0%, #1b2738 100%) !important;
+    border: 1px solid #354960 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.17) !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .soft-card:hover {
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24) !important;
+}
+
+/* Las cifras se definían con #2b2b2b, prácticamente invisible sobre azul oscuro. */
+html[data-sita-theme="dark"] .sita-app .main-content .kpi-title {
+    color: var(--sita-dark-muted) !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .kpi-value:not(.text-warning):not(.text-success):not(.text-danger) {
+    color: var(--sita-dark-ink) !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .kpi-value span[style] {
+    color: var(--sita-dark-muted) !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .kpi-link {
+    font-weight: 700;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .icon-primary {
+    background: rgba(96, 165, 250, 0.15) !important;
+    color: #93c5fd !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .icon-success {
+    background: rgba(74, 222, 128, 0.13) !important;
+    color: #86efac !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .icon-danger {
+    background: rgba(251, 113, 133, 0.13) !important;
+    color: #fda4af !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .icon-warning {
+    background: rgba(251, 191, 36, 0.13) !important;
+    color: #fcd34d !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .icon-info {
+    background: rgba(34, 211, 238, 0.13) !important;
+    color: #67e8f9 !important;
+}
+
+/* Tablas: filas ligeramente elevadas, contraste uniforme y bordes continuos. */
+html[data-sita-theme="dark"] .sita-app .main-content .table-modern thead th {
+    color: #c4d0e0 !important;
+    background: transparent !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .table-modern tbody td {
+    background: var(--sita-dark-row) !important;
+    border-top: 1px solid #344a63 !important;
+    border-bottom: 1px solid #344a63 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .table-modern tbody td:first-child {
+    border-left: 1px solid #344a63 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .table-modern tbody td:last-child {
+    border-right: 1px solid #344a63 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .table-modern tbody tr:hover td {
+    background: var(--sita-dark-row-hover) !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .table-modern tbody td .text-dark {
+    color: var(--sita-dark-ink) !important;
+}
+
+/* Chips de curso y códigos QR: evitar pastillas blancas que rompen la paleta. */
+html[data-sita-theme="dark"] .sita-app .main-content .table-modern .badge.bg-white,
+html[data-sita-theme="dark"] .sita-app .main-content .table-modern .badge.bg-light {
+    background: #334761 !important;
+    border-color: #526b88 !important;
+    color: #f0f5fd !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .qr-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    background: #334761 !important;
+    border: 1px solid #526b88 !important;
+    color: #f0f5fd !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .qr-badge .text-dark {
+    color: #cbdcf3 !important;
+}
+
+/* Acciones de editar, eliminar y regenerar QR. */
+html[data-sita-theme="dark"] .sita-app .main-content .btn-light {
+    background: #334761 !important;
+    border: 1px solid #506781 !important;
+    color: #e7effb;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .btn-light:hover,
+html[data-sita-theme="dark"] .sita-app .main-content .btn-light:focus-visible {
+    background: #405874 !important;
+    border-color: #7790ae !important;
+}
+
+/* Buscadores y selección de archivos: sin contraste blanco/negro abrupto. */
+html[data-sita-theme="dark"] .sita-app .main-content .search-box {
+    background: #26364b !important;
+    border: 1px solid #4b607a !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .search-box:focus-within {
+    border-color: #fda4af !important;
+    box-shadow: 0 0 0 3px rgba(253, 164, 175, 0.15) !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .search-box .form-control {
+    background: transparent !important;
+    color: var(--sita-dark-ink) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .import-box {
+    background: #20372f !important;
+    border: 1px dashed #4a846e !important;
+    gap: 0.4rem;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .import-box input[type="file"] {
+    max-width: 205px !important;
+    min-width: 0;
+    color: #e4f5ed !important;
+    background: transparent !important;
+    font-size: 0.82rem !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .import-box input[type="file"]::file-selector-button {
+    background: #315b4a;
+    border: 1px solid #4b896e;
+    border-radius: 7px;
+    color: #effcf5;
+    padding: 5px 7px;
+    margin-right: 7px;
+    cursor: pointer;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .import-box input[type="file"]::file-selector-button:hover {
+    background: #3d715b;
+}
+
+/* Control de gestión académica: cabecera con acento rojo institucional. */
+html[data-sita-theme="dark"] .sita-app .main-content .card-header.bg-danger {
+    background: linear-gradient(110deg, #782831 0%, #9e303c 100%) !important;
+    color: #fff !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .card-header.bg-danger :is(h4, h5, h6) {
+    color: #fff !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .card.border-danger {
+    border-color: #9a4753 !important;
+}
+
+/* Etiquetas de rol y cajas de selección de reportes. */
+html[data-sita-theme="dark"] .sita-app .main-content .badge-admin {
+    background: rgba(251, 113, 133, 0.16) !important;
+    color: #fda4af !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .badge-docente {
+    background: rgba(74, 222, 128, 0.14) !important;
+    color: #86efac !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .badge-jefe {
+    background: rgba(251, 191, 36, 0.14) !important;
+    color: #fcd34d !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .badge-default,
+html[data-sita-theme="dark"] .sita-app .main-content .badge-info-soft {
+    background: rgba(103, 232, 249, 0.13) !important;
+    color: #a5f3fc !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .materia-box {
+    background: #2b3344 !important;
+    border-color: #bd6471 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .materia-box:hover {
+    background: #393449 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .materia-box.selected {
+    background: #203c35 !important;
+    border-color: #63b895 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .search-modal {
+    background: #26364b !important;
+    border-color: #4b607a !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .search-modal input {
+    background: transparent !important;
+    color: var(--sita-dark-ink) !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .scrollable-chart-container::-webkit-scrollbar-track {
+    background: #243449;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .scrollable-chart-container::-webkit-scrollbar-thumb {
+    background: #62758f;
+}
