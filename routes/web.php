@@ -27,37 +27,37 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Administrador: gestion de usuarios, cursos, estudiantes, reportes y gestiones.
     Route::middleware('role:administrador')->group(function () {
         Route::get('/admin/dashboard', function () {
-        
-        // Lógica de los 3 KPIs solicitados
-        $datos = [
-        'total_estudiantes' => Estudiante::count(),
-        // Contamos a todos los usuarios cuyo rol NO sea estudiante (Admins, Jefes, Docentes)
-        'total_plantel'     => Usuario::whereHas('rol', function($q) {
-        $q->where('nombre', '!=', 'estudiante');
-        })->count(),
-        'total_usuarios'    => Usuario::count(),
-        'ultimos_usuarios'  => Usuario::latest()->take(5)->with('rol')->get()
-        ];
-        
-        // ASISTENCIA DE HOY
-        $hoy = now()->format('Y-m-d');
-        
-        $asistenciasHoy = Asistencia::whereDate('fecha', $hoy)
-        ->select('estado', DB::raw('count(*) as total'))
-        ->groupBy('estado')
-        ->pluck('total', 'estado')
-        ->toArray();
-        
-        $chart_data = [
-        $asistenciasHoy['presente'] ?? 0,
-        $asistenciasHoy['falta'] ?? 0,
-        $asistenciasHoy['atraso'] ?? 0,
-        $asistenciasHoy['licencia'] ?? 0,
-        ];
-        
-        $chart_labels = ['Presentes', 'Faltas', 'Atrasos', 'Licencias'];
-        
-        return view('admin.dashboard', compact('datos', 'chart_labels', 'chart_data'));
+            
+            // Lógica de los 3 KPIs solicitados
+            $datos = [
+                'total_estudiantes' => Estudiante::count(),
+                // Contamos a todos los usuarios cuyo rol NO sea estudiante (Admins, Jefes, Docentes)
+                'total_plantel'     => Usuario::whereHas('rol', function($q) {
+                                            $q->where('nombre', '!=', 'estudiante');
+                                       })->count(),
+                'total_usuarios'    => Usuario::count(),
+                'ultimos_usuarios'  => Usuario::latest()->take(5)->with('rol')->get()
+            ];
+    
+            // ASISTENCIA DE HOY
+            $hoy = now()->format('Y-m-d');
+            
+            $asistenciasHoy = Asistencia::whereDate('fecha', $hoy)
+                ->select('estado', DB::raw('count(*) as total'))
+                ->groupBy('estado')
+                ->pluck('total', 'estado')
+                ->toArray();
+    
+            $chart_data = [
+                $asistenciasHoy['presente'] ?? 0,
+                $asistenciasHoy['falta'] ?? 0,
+                $asistenciasHoy['atraso'] ?? 0,
+                $asistenciasHoy['licencia'] ?? 0,
+            ];
+    
+            $chart_labels = ['Presentes', 'Faltas', 'Atrasos', 'Licencias'];
+    
+            return view('admin.dashboard', compact('datos', 'chart_labels', 'chart_data'));
         })->name('admin.dashboard');
 
         Route::get('/admin/usuarios', [App\Http\Controllers\UsuarioController::class, 'index'])->name('usuarios.index');
