@@ -34,7 +34,7 @@ Route::post('/login', function (Request $request) {
         'user' => $user,
         'rol' => $user->rol->nombre
     ]);
-})->middleware('throttle:5,1');
+})->middleware('throttle:sita-login');
 
 // 2. Ruta de Prueba (AHORA SÍ ES PÚBLICA)
 Route::get('/prueba', function () {
