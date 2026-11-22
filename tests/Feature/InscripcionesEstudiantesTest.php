@@ -35,6 +35,8 @@ class InscripcionesEstudiantesTest extends TestCase
     public function test_registro_manual_crea_inscripcion_en_gestion_activa(): void
     {
         $this->actingAs($this->crearUsuario('administrador', 'admin@sita.test'));
+        // RefreshDatabase no ejecuta seeders: crear tambien el rol que usa store().
+        Rol::firstOrCreate(['nombre' => 'estudiante']);
         $gestion = Gestion::create(['anio' => '2026', 'es_activa' => true]);
         $curso = Curso::create(['nombre' => 'Primero A', 'gestion' => '2026']);
 
