@@ -10,7 +10,6 @@ use App\Models\Curso;
 use App\Models\Gestion;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 use App\Imports\EstudiantesImport; 
 use Maatwebsite\Excel\Facades\Excel; 
 
@@ -44,7 +43,7 @@ class EstudianteController extends Controller
         $request->validate([
             'nombre_completo' => 'required|string|max:255',
             'email' => 'required|email|unique:usuarios,email',
-            'password' => ['required', Password::min(12)->letters()->numbers()],
+            'password' => 'required|min:6',
             'ci' => 'nullable|string|unique:estudiantes,ci',
             'matricula' => 'nullable|string|unique:estudiantes,matricula',
             'codigo_qr' => 'required|string|unique:estudiantes,codigo_qr',
@@ -128,7 +127,6 @@ class EstudianteController extends Controller
         $request->validate([
             'nombre_completo' => 'required|string|max:255',
             'email' => 'required|email|unique:usuarios,email,'.$usuario->id,
-            'password' => ['nullable', Password::min(12)->letters()->numbers()],
             'curso_id' => 'required|exists:cursos,id',
             'codigo_qr' => 'required|string|unique:estudiantes,codigo_qr,'.$estudiante->id,
         ]);
@@ -148,7 +146,6 @@ class EstudianteController extends Controller
 
             if ($request->filled('password')) {
                 $usuario->update(['password' => Hash::make($request->password)]);
-                $usuario->tokens()->delete();
             }
 
             $estudiante->update([
