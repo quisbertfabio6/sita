@@ -72,6 +72,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('/admin/asignaciones', App\Http\Controllers\AsignacionController::class)->except(['show', 'edit', 'update'])->names('asignaciones');
         Route::resource('/admin/estudiantes', App\Http\Controllers\EstudianteController::class)->names('estudiantes');
         
+        // Respaldos completos: acceso exclusivo del administrador.
+        Route::get('/admin/respaldos', [App\Http\Controllers\RespaldoController::class, 'index'])->name('respaldos.index');
+        Route::post('/admin/respaldos/crear', [App\Http\Controllers\RespaldoController::class, 'crear'])
+            ->middleware('throttle:2,60')->name('respaldos.crear');
+        Route::get('/admin/respaldos/descargar/{nombre}', [App\Http\Controllers\RespaldoController::class, 'descargar'])
+            ->where('nombre', 'sita-completo-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}\.zip')
+            ->name('respaldos.descargar');
+
         Route::get('/admin/reportes', [App\Http\Controllers\ReporteController::class, 'index'])->name('reportes.index');
         Route::post('/admin/reportes/generar', [App\Http\Controllers\ReporteController::class, 'generarReporteFechas'])->name('reportes.generar');
 
