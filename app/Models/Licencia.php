@@ -22,4 +22,21 @@ class Licencia extends Model
     public function jefeCarrera() {
         return $this->belongsTo(JefeCarrera::class, 'jefe_carrera_id');
     }
+
+    /**
+     * Mostrar el curso de la gestion en que se solicito la licencia.
+     * estudiantes.curso_id ya no existe: ahora se usan inscripciones.
+     */
+    public function cursoDeLaSolicitud(): ?Curso
+    {
+        $inscripciones = $this->estudiante?->inscripciones;
+        if (!$inscripciones || !$this->created_at) {
+            return null;
+        }
+
+        $anio = $this->created_at->format('Y');
+        return $inscripciones
+            ->first(fn (Inscripcion $inscripcion) => $inscripcion->gestion?->anio === $anio)
+            ?->curso;
+    }
 }

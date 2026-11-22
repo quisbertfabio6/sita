@@ -59,7 +59,7 @@
                                 <div>
                                     <div class="fw-bold text-dark">{{ $licencia->estudiante->usuario->nombre_completo }}</div>
                                     <span class="badge bg-white text-dark border shadow-sm mt-1 px-2 py-1" style="border-radius: 6px;">
-                                        <i class="fas fa-chalkboard text-primary me-1"></i> {{ $licencia->estudiante->curso->nombre }}
+                                        <i class="fas fa-chalkboard text-primary me-1"></i> {{ $licencia->cursoDeLaSolicitud()?->nombre ?? 'Sin curso registrado' }}
                                     </span>
                                 </div>
                             </div>
