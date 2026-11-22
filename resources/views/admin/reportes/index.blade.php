@@ -32,6 +32,22 @@
                 <form action="{{ route('reportes.generar') }}" method="POST" target="_blank" id="formReporte">
                     @csrf
 
+                    <div class="mb-4">
+                        <label for="gestion_id" class="form-label fw-bold text-dark">Gestión académica</label>
+                        <select name="gestion_id" id="gestion_id" class="form-select form-select-lg bg-light border-0 shadow-sm" required>
+                            <option value="">Seleccione la gestión</option>
+                            @foreach($gestiones as $gestion)
+                                <option value="{{ $gestion->id }}"
+                                    {{ old('gestion_id', $gestionActiva?->id) == $gestion->id ? 'selected' : '' }}>
+                                    {{ $gestion->anio }}{{ $gestion->es_activa ? ' (activa)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Las fechas de inicio y fin deben estar dentro del año seleccionado.</small>
+                        @error('gestion_id') <div class="text-danger small">{{ $message }}</div> @enderror
+                        @error('fecha_inicio') <div class="text-danger small">{{ $message }}</div> @enderror
+                    </div>
+
                     <div class="mb-5">
                         <label class="form-label fw-bold text-dark">1. Seleccione la Materia</label>
                         
