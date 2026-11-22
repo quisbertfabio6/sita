@@ -12,187 +12,123 @@ use App\Models\Licencia;
 use App\Models\Estudiante;
 use App\Models\Curso;
 use App\Models\Materia;
+use App\Models\Asistencia;
+use App\Services\AccesoLicenciasJefaturaService;
 
 class JefeController extends Controller
 {
-    // --- MÉTODO AUXILIAR PARA TRADUCIR NOMBRES ---
-    private function obtenerPalabraClave($nombreCompleto) 
-    {
-        $mapa = [
-            'Sistemas Informáticos' => 'Sistemas',
-            'Mecánica Automotriz'   => 'Automotriz',
-            'Mecánica Industrial'   => 'Mec. Industrial',
-            'Electromecánica'       => 'Electromecánica',
-            'Electrónica'           => 'Electrónica',
-            'Construcción Civil'    => 'Construcción Civil',
-        ];
-
-        $nombreLimpio = trim($nombreCompleto);
-        return $mapa[$nombreLimpio] ?? $nombreLimpio;
-    }
-
-    // 1. Dashboard Académico (CORREGIDO A INSCRIPCIONES)
-    public function index()
+    // 1. Dashboard académico con el mismo filtro de carreras que las licencias.
+    public function index(AccesoLicenciasJefaturaService $acceso)
     {
         $jefe = Auth::user()->jefeCarrera;
-        
-        // Obtenemos las carreras asignadas
-        $carrerasAsignadas = ($jefe && $jefe->carrera_asignada) ? explode(',', $jefe->carrera_asignada) : [];
 
-        // Inicializamos variables con las CLAVES EXACTAS que pide la vista
         $kpis = [
-            'licencias_pendientes' => 0, 
+            'licencias_pendientes' => $acceso->filtrarLicencias(Licencia::query(), $jefe)
+                ->where('estado', 'pendiente')->count(),
             'total_cursos' => 0,
             'total_materias' => 0,
-            'promedio_general' => 0
+            'promedio_general' => 0,
         ];
-        $pieData = [0, 0, 0];
+
+        $queryCursos = $acceso->filtrarCursos(Curso::query(), $jefe);
+        $kpis['total_cursos'] = (clone $queryCursos)->count();
+        $idsCursos = (clone $queryCursos)->pluck('id');
+        $kpis['total_materias'] = Materia::whereIn('curso_id', $idsCursos)->count();
+
+        $conteoLicencias = $acceso->filtrarLicencias(Licencia::query(), $jefe)
+            ->select('estado', DB::raw('count(*) as total'))
+            ->groupBy('estado')
+            ->pluck('total', 'estado')
+            ->toArray();
+
+        $pieData = [
+            $conteoLicencias['aprobada'] ?? 0,
+            $conteoLicencias['rechazada'] ?? 0,
+            $conteoLicencias['pendiente'] ?? 0,
+        ];
+
         $barLabels = [];
         $barData = [];
+        $sumaPromedios = 0;
+        $cursos = $queryCursos->with(['materias.asistencias'])->get();
 
-        if (!empty($carrerasAsignadas)) {
-            
-            // --- A. KPIS (CONTADORES) ---
-            
-            // 1. Licencias Pendientes (Filtrado por inscripción -> curso)
-            $kpis['licencias_pendientes'] = Licencia::where('estado', 'pendiente')
-                ->whereHas('estudiante.inscripciones.curso', function ($query) use ($carrerasAsignadas) {
-                    $query->where(function ($q) use ($carrerasAsignadas) {
-                        foreach ($carrerasAsignadas as $carrera) {
-                            $palabraClave = $this->obtenerPalabraClave($carrera);
-                            $q->orWhere('nombre', 'LIKE', '%' . $palabraClave . '%');
-                        }
-                    });
-                })->count();
+        foreach ($cursos as $curso) {
+            $totalRegistros = 0;
+            $totalPresentes = 0;
 
-            // 2. Query Base de Cursos
-            $queryCursos = Curso::where(function ($q) use ($carrerasAsignadas) {
-                foreach ($carrerasAsignadas as $carrera) {
-                    $palabraClave = $this->obtenerPalabraClave($carrera);
-                    $q->orWhere('nombre', 'LIKE', '%' . $palabraClave . '%');
-                }
-            });
-
-            $kpis['total_cursos'] = $queryCursos->count();
-
-            // 3. Total Materias
-            $idsCursos = $queryCursos->pluck('id');
-            $kpis['total_materias'] = Materia::whereIn('curso_id', $idsCursos)->count();
-
-
-            // --- B. DATOS PARA GRÁFICOS ---
-
-            // 4. Gráfico Dona: Licencias por Estado
-            $conteoLicencias = Licencia::whereHas('estudiante.inscripciones.curso', function ($query) use ($carrerasAsignadas) {
-                    $query->where(function ($q) use ($carrerasAsignadas) {
-                        foreach ($carrerasAsignadas as $carrera) {
-                            $palabraClave = $this->obtenerPalabraClave($carrera);
-                            $q->orWhere('nombre', 'LIKE', '%' . $palabraClave . '%');
-                        }
-                    });
-                })
-                ->select('estado', DB::raw('count(*) as total'))
-                ->groupBy('estado')
-                ->pluck('total', 'estado')
-                ->toArray();
-
-            // Orden: [Aprobadas, Rechazadas, Pendientes]
-            $pieData = [
-                $conteoLicencias['aprobada'] ?? 0,
-                $conteoLicencias['rechazada'] ?? 0,
-                $conteoLicencias['pendiente'] ?? 0,
-            ];
-
-            // 5. Gráfico Barras: Asistencia por Curso
-            $cursos = $queryCursos->with(['materias.asistencias'])->get();
-            
-            $sumaPromedios = 0;
-            
-            foreach ($cursos as $curso) {
-                $totalRegistros = 0;
-                $totalPresentes = 0;
-
-                foreach ($curso->materias as $materia) {
-                    $totalRegistros += $materia->asistencias->count();
-                    $totalPresentes += $materia->asistencias->where('estado', 'presente')->count();
-                }
-
-                $porcentaje = $totalRegistros > 0 
-                    ? round(($totalPresentes / $totalRegistros) * 100) 
-                    : 0;
-
-                $barLabels[] = $curso->nombre;
-                $barData[] = $porcentaje;
-                $sumaPromedios += $porcentaje;
+            foreach ($curso->materias as $materia) {
+                $totalRegistros += $materia->asistencias->count();
+                $totalPresentes += $materia->asistencias->where('estado', 'presente')->count();
             }
 
-            if (count($cursos) > 0) {
-                $kpis['promedio_general'] = round($sumaPromedios / count($cursos));
-            }
+            $porcentaje = $totalRegistros > 0
+                ? round(($totalPresentes / $totalRegistros) * 100)
+                : 0;
+
+            $barLabels[] = $curso->nombre;
+            $barData[] = $porcentaje;
+            $sumaPromedios += $porcentaje;
+        }
+
+        if ($cursos->count() > 0) {
+            $kpis['promedio_general'] = round($sumaPromedios / $cursos->count());
         }
 
         return view('jefe.dashboard', compact('kpis', 'pieData', 'barLabels', 'barData'));
     }
 
-    // 2. Ver lista de licencias
-    public function licencias()
+    // 2. Solo mostrar solicitudes de las carreras y gestiones autorizadas.
+    public function licencias(AccesoLicenciasJefaturaService $acceso)
     {
         $jefe = Auth::user()->jefeCarrera;
-        
-        if (!$jefe || empty($jefe->carrera_asignada)) {
-            $licencias = collect();
-        } else {
-            $carreras = explode(',', $jefe->carrera_asignada);
+        $licencias = $acceso->filtrarLicencias(Licencia::query(), $jefe)
+            ->with([
+                'estudiante.usuario',
+                'estudiante.inscripciones.gestion',
+                'estudiante.inscripciones.curso',
+            ])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-            $licencias = Licencia::with(['estudiante.usuario', 'estudiante.inscripciones.curso'])
-                ->whereHas('estudiante.inscripciones.curso', function ($query) use ($carreras) {
-                    $query->where(function ($q) use ($carreras) {
-                        foreach ($carreras as $carrera) {
-                            $palabraClave = $this->obtenerPalabraClave($carrera);
-                            $q->orWhere('nombre', 'LIKE', '%' . $palabraClave . '%');
-                        }
-                    });
-                })
-                ->orderBy('created_at', 'desc')
-                ->get();
-        }
-                             
         return view('jefe.licencias.index', compact('licencias'));
     }
 
-    // 3. Acción de Aprobar/Rechazar
-    public function cambiarEstadoLicencia(Request $request, $id)
+    // 3. Aprobar/rechazar: comprobar el acceso en servidor, no solo en la tabla.
+    public function cambiarEstadoLicencia(Request $request, $id, AccesoLicenciasJefaturaService $acceso)
     {
-        $licencia = Licencia::findOrFail($id);
-        
-        $request->validate([
+        $datos = $request->validate([
             'estado' => 'required|in:aprobada,rechazada',
-            'comentario_admin' => 'nullable|string|max:255'
+            'comentario_admin' => 'nullable|string|max:255',
         ]);
 
-        $licencia->estado = $request->estado;
-        $licencia->comentario_admin = $request->comentario_admin;
-        
-        $jefe = Auth::user()->jefeCarrera; 
-        if($jefe) {
-            $licencia->jefe_carrera_id = $jefe->id;
-        }
-        $licencia->save();
+        $jefe = $request->user()->jefeCarrera;
+        abort_unless($jefe, 403, 'No tienes un perfil de jefatura asignado.');
 
-        if ($request->estado === 'aprobada') {
-            $asistenciasAfectadas = \App\Models\Asistencia::where('estudiante_id', $licencia->estudiante_id)
-                ->whereBetween('fecha', [$licencia->fecha_inicio, $licencia->fecha_fin])
-                ->get();
+        DB::transaction(function () use ($acceso, $jefe, $id, $datos) {
+            // findOrFail devuelve 404 si el ID existe pero pertenece a otra carrera.
+            // lockForUpdate evita que dos jefes procesen simultaneamente la solicitud.
+            $licencia = $acceso->filtrarLicencias(Licencia::query(), $jefe)
+                ->lockForUpdate()
+                ->findOrFail($id);
 
-            foreach ($asistenciasAfectadas as $asistencia) {
-                if ($asistencia->estado === 'falta' || $asistencia->estado === 'atraso') {
-                    $asistencia->update([
+            abort_if($licencia->estado !== 'pendiente', 409, 'La licencia ya fue procesada.');
+
+            $licencia->update([
+                'estado' => $datos['estado'],
+                'comentario_admin' => $datos['comentario_admin'] ?? null,
+                'jefe_carrera_id' => $jefe->id,
+            ]);
+
+            if ($datos['estado'] === 'aprobada') {
+                Asistencia::where('estudiante_id', $licencia->estudiante_id)
+                    ->whereBetween('fecha', [$licencia->fecha_inicio, $licencia->fecha_fin])
+                    ->whereIn('estado', ['falta', 'atraso'])
+                    ->update([
                         'estado' => 'licencia',
-                        'observacion' => "Justificado por Licencia #{$licencia->id}: " . $licencia->motivo
+                        'observacion' => 'Justificado por Licencia #' . $licencia->id . ': ' . $licencia->motivo,
                     ]);
-                }
             }
-        }
+        });
 
         return redirect()->back()->with('success', 'Licencia procesada correctamente.');
     }
@@ -203,46 +139,40 @@ class JefeController extends Controller
         return view('jefe.reportes.index');
     }
 
-    // 5. Generar Reporte PDF
-    public function generateLicenseReport(Request $request)
+    // 5. Reporte PDF limitado a las mismas licencias que puede gestionar el jefe.
+    public function generateLicenseReport(Request $request, AccesoLicenciasJefaturaService $acceso)
     {
-        $request->validate([
+        $datos = $request->validate([
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
             'estado' => 'required|in:todas,pendiente,aprobada,rechazada',
         ]);
 
-        $jefe = Auth::user()->jefeCarrera;
-        $carrerasAsignadas = ($jefe && $jefe->carrera_asignada) ? explode(',', $jefe->carrera_asignada) : [];
+        $jefe = $request->user()->jefeCarrera;
+        $query = $acceso->filtrarLicencias(Licencia::query(), $jefe)
+            ->whereBetween('fecha_inicio', [$datos['fecha_inicio'], $datos['fecha_fin']]);
 
-        $query = Licencia::query();
-        $query->whereBetween('fecha_inicio', [$request->fecha_inicio, $request->fecha_fin]);
-
-        if ($request->estado != 'todas') {
-            $query->where('estado', $request->estado);
+        if ($datos['estado'] !== 'todas') {
+            $query->where('estado', $datos['estado']);
         }
 
-        $query->whereHas('estudiante.inscripciones.curso', function ($q_curso) use ($carrerasAsignadas) {
-            $q_curso->where(function ($q) use ($carrerasAsignadas) {
-                foreach ($carrerasAsignadas as $carrera) {
-                    $palabraClave = $this->obtenerPalabraClave(trim($carrera));
-                    $q->orWhere('nombre', 'LIKE', '%' . $palabraClave . '%');
-                }
-            });
-        });
+        $licencias = $query
+            ->with([
+                'estudiante.usuario',
+                'estudiante.inscripciones.gestion',
+                'estudiante.inscripciones.curso',
+                'jefeCarrera',
+            ])
+            ->orderBy('fecha_inicio', 'asc')
+            ->get();
 
-        $licencias = $query->with(['estudiante.usuario', 'estudiante.inscripciones.curso', 'jefeCarrera']) 
-                            ->orderBy('fecha_inicio', 'asc')
-                            ->get();
-        
-        $datosReporte = [
-            'fecha_inicio' => $request->fecha_inicio,
-            'fecha_fin' => $request->fecha_fin,
-            'estado' => $request->estado,
-            'licencias' => $licencias
-        ];
+        $pdf = Pdf::loadView('reportes.jefe_licencias', [
+            'fecha_inicio' => $datos['fecha_inicio'],
+            'fecha_fin' => $datos['fecha_fin'],
+            'estado' => $datos['estado'],
+            'licencias' => $licencias,
+        ]);
 
-        $pdf = Pdf::loadView('reportes.jefe_licencias', $datosReporte);
         return $pdf->stream('Reporte_Licencias.pdf');
     }
 }
