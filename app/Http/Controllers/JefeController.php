@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 // Modelos
@@ -125,7 +126,7 @@ class JefeController extends Controller
                     ->whereIn('estado', ['falta', 'atraso'])
                     ->update([
                         'estado' => 'licencia',
-                        'observacion' => 'Justificado por Licencia #' . $licencia->id . ': ' . $licencia->motivo,
+                        'observacion' => Str::limit('Justificado por Licencia #' . $licencia->id . ': ' . $licencia->motivo, 255, ''),
                     ]);
             }
         });
