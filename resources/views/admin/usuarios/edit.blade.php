@@ -34,12 +34,11 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Nueva Contraseña (Opcional)</label>
                                 <div class="input-group">
-                                    <input type="password" name="password" class="form-control" minlength="12" id="passwordInputEdit" placeholder="Dejar vacío para no cambiar">
+                                    <input type="password" name="password" class="form-control" id="passwordInputEdit" placeholder="Dejar vacío para no cambiar">
                                     <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordEdit()">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
-                                <small class="text-muted">Mínimo 12 caracteres, con letras y números.</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Rol</label>
