@@ -38,7 +38,7 @@
             <td>TOTAL CLASES: {{ $totalClases }}</td>
         </tr>
         <tr>
-            <td>GESTIÓN: {{ $materia->curso->gestion }}</td>
+            <td>GESTIÓN: {{ $gestion->anio }}</td>
             <td>FECHA REPORTE: {{ date('d/m/Y') }}</td>
         </tr>
     </table>
@@ -49,6 +49,7 @@
                 <th style="width: 30px;">#</th>
                 <th>Estudiante</th>
                 <th>Matrícula</th>
+                <th style="width: 80px;">P / A / F / L</th>
                 <th style="width: 60px;">Asist. (Pts)</th>
                 <th style="width: 60px;">% Final</th>
                 <th>Estado</th>
@@ -60,10 +61,13 @@
                 <td style="text-align: center;">{{ $index + 1 }}</td>
                 <td>{{ $alumno['nombre'] }}</td>
                 <td>{{ $alumno['matricula'] }}</td>
+                <td style="text-align: center;">{{ $alumno['conteos']['presente'] }} / {{ $alumno['conteos']['atraso'] }} / {{ $alumno['conteos']['falta'] }} / {{ $alumno['conteos']['licencia'] }}</td>
                 <td style="text-align: center;">{{ $alumno['asistencias_puntos'] }}</td>
                 <td style="text-align: center;">{{ $alumno['porcentaje'] }}%</td>
                 <td style="text-align: center;">
-                    @if($alumno['porcentaje'] < 80)
+                    @if($alumno['sin_clases'])
+                        <span>SIN CLASES</span>
+                    @elseif($alumno['riesgo'])
                         <span class="rojo">EN RIESGO</span>
                     @else
                         <span class="verde">REGULAR</span>
@@ -74,6 +78,7 @@
         </tbody>
     </table>
 
+    <p style="font-size: 9px; color: #666;">P / A / F / L: presentes, atrasos, faltas y licencias registradas. Licencias suman puntos solo si están aprobadas. Total de clases = fechas distintas con registros.</p>
     <div class="firmas">
         <br><br><br>
         __________________________<br>
