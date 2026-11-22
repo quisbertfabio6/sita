@@ -10,6 +10,7 @@ use App\Models\Licencia;
 use App\Models\Materia;
 use App\Models\Estudiante;
 use App\Models\Gestion;
+use Carbon\Carbon;
 
 class DocenteApiController extends Controller
 {
@@ -31,59 +32,104 @@ class DocenteApiController extends Controller
         ]);
     }
 
-    // 2. Registrar Asistencia por QR
+    // 2. Registrar asistencia por QR, usando la hora real del escaneo.
+    // Flutter envia fecha/hora de la captura, incluso cuando sincroniza sin conexion.
     public function registrarAsistencia(Request $request)
     {
-        $request->validate([
+        $datos = $request->validate([
             'codigo_qr' => 'required|string',
             'materia_id' => 'required|exists:materias,id',
-            'fecha' => 'required|date',
-            'hora' => 'required',
+            'fecha' => 'required|date_format:Y-m-d',
+            'hora' => 'required|date_format:H:i,H:i:s',
         ]);
 
-        $estudiante = Estudiante::where('codigo_qr', $request->codigo_qr)->first();
+        $materia = Materia::findOrFail($datos['materia_id']);
+        $docente = $request->user()?->docente;
 
-        if (!$estudiante) {
-            return response()->json(['success' => false, 'message' => 'QR no válido.'], 404);
+        if (!$docente || !$docente->materias()->where('materias.id', $materia->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Materia no asignada al docente.',
+            ], 403);
         }
 
-        // Validar si tiene licencia aprobada para hoy
+        $gestionActiva = Gestion::where('es_activa', true)->first();
+        if (!$gestionActiva) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay una gestion academica activa.',
+            ], 422);
+        }
+
+        // En esta etapa solo se registran asistencias de la gestion activa.
+        if (substr($datos['fecha'], 0, 4) !== (string) $gestionActiva->anio) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La fecha no corresponde a la gestion activa.',
+            ], 422);
+        }
+
+        $estudiante = Estudiante::where('codigo_qr', $datos['codigo_qr'])->first();
+        if (!$estudiante) {
+            return response()->json([
+                'success' => false,
+                'message' => 'QR no valido.',
+            ], 404);
+        }
+
+        // Evita registrar asistencia en otra materia o de alumnos retirados.
+        $inscrito = $estudiante->inscripciones()
+            ->where('curso_id', $materia->curso_id)
+            ->where('gestion_id', $gestionActiva->id)
+            ->where('estado', 'Activo')
+            ->exists();
+
+        if (!$inscrito) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El estudiante no esta inscrito en este curso durante la gestion activa.',
+            ], 422);
+        }
+
         $tieneLicencia = Licencia::where('estudiante_id', $estudiante->id)
             ->where('estado', 'aprobada')
-            ->whereDate('fecha_inicio', '<=', $request->fecha)
-            ->whereDate('fecha_fin', '>=', $request->fecha)
+            ->whereDate('fecha_inicio', '<=', $datos['fecha'])
+            ->whereDate('fecha_fin', '>=', $datos['fecha'])
             ->exists();
 
         if ($tieneLicencia) {
-            return response()->json(['success' => false, 'message' => 'El estudiante tiene licencia justificada hoy.'], 409);
+            return response()->json([
+                'success' => false,
+                'message' => 'El estudiante tiene licencia justificada en esa fecha.',
+            ], 409);
         }
 
-        // MANTENER TU CÓDIGO ANTERIOR AQUÍ (Validaciones, buscar al estudiante, etc.)
+        if (!$materia->hora_inicio) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La materia no tiene horario de inicio configurado.',
+            ], 422);
+        }
 
-$materia = \App\Models\Materia::find($request->materia_id);
-$estadoCalculado = 'presente'; // Estado por defecto
+        // Comparar horas de la MISMA fecha, no Carbon::now() del servidor.
+        // Si el QR se escaneo offline a las 08:05 y se sincroniza a las 11:00,
+        // se mantiene la hora original 08:05 para calcular el estado.
+        $momentoRegistro = Carbon::parse($datos['fecha'] . ' ' . $datos['hora']);
+        $limitePuntualidad = Carbon::parse($datos['fecha'] . ' ' . $materia->hora_inicio)
+            ->addMinutes((int) $materia->minutos_tolerancia);
 
-if ($materia && $materia->hora_inicio) {
-    // Convertimos las horas usando la librería Carbon de Laravel
-    $horaInicio = \Carbon\Carbon::parse($materia->hora_inicio);
-    $horaTolerancia = $horaInicio->copy()->addMinutes($materia->minutos_tolerancia);
-    $horaActual = \Carbon\Carbon::now();
+        $estadoCalculado = $momentoRegistro->greaterThan($limitePuntualidad)
+            ? 'atraso'
+            : 'presente';
 
-    // Si la hora actual es mayor a la hora de tolerancia, es un atraso
-    if ($horaActual->greaterThan($horaTolerancia)) {
-        $estadoCalculado = 'atraso';
-    }
-}
-
-        // Guardar asistencia
         Asistencia::updateOrCreate(
             [
                 'estudiante_id' => $estudiante->id,
-                'materia_id' => $request->materia_id,
-                'fecha' => $request->fecha,
+                'materia_id' => $materia->id,
+                'fecha' => $datos['fecha'],
             ],
             [
-                'hora' => $request->hora,
+                'hora' => $momentoRegistro->format('H:i:s'),
                 'estado' => $estadoCalculado,
                 'es_sincronizado' => true,
             ]
@@ -92,7 +138,7 @@ if ($materia && $materia->hora_inicio) {
         return response()->json([
             'success' => true,
             'message' => 'Asistencia registrada',
-            'alumno' => $estudiante->usuario->nombre_completo
+            'alumno' => $estudiante->usuario->nombre_completo,
         ]);
     }
 
