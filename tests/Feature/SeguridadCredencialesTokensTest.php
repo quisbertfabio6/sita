@@ -131,6 +131,28 @@ class SeguridadCredencialesTokensTest extends TestCase
         ])->assertStatus(429);
     }
 
+    public function test_cuentas_distintas_de_la_misma_red_no_comparten_bloqueo(): void
+    {
+        $this->usuario('estudiante', 'alumno@sita.test');
+        $this->usuario('docente', 'docente@sita.test');
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/login', [
+                'email' => 'alumno@sita.test',
+                'password' => 'incorrecta',
+                'device_name' => 'celular',
+            ])->assertUnauthorized();
+        }
+
+        // El limite por cuenta no debe impedir el acceso a otro usuario
+        // de la misma red, salvo que se supere el limite general por IP.
+        $this->postJson('/api/login', [
+            'email' => 'docente@sita.test',
+            'password' => 'ClaveSegura1234',
+            'device_name' => 'celular',
+        ])->assertOk();
+    }
+
     public function test_login_web_limita_intentos_fallidos(): void
     {
         $this->usuario('administrador', 'admin@sita.test');
