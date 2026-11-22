@@ -2,25 +2,31 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Materia;
 use App\Models\Asistencia;
 use App\Models\Curso;
-use App\Models\Estudiante; // <- AÑADIDO
-use App\Models\Gestion;    // <- AÑADIDO
+use App\Models\Estudiante;
+use App\Models\Gestion;
+use App\Models\Licencia;
+use App\Models\Materia;
+use App\Services\EstadisticasAsistenciaService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class ReporteController extends Controller
 {
+    public function __construct(private EstadisticasAsistenciaService $estadisticas)
+    {
+    }
+
     /**
-     * Muestra la página principal de Reportes con los filtros
+     * Pantalla de reportes con filtro de gestion academica.
      */
     public function index()
     {
         $cursos = Curso::orderBy('nombre')->get();
-        $materias = Materia::orderBy('nombre')->get();
-        
-        // --- NUEVO: Mandamos las gestiones a la vista para el Filtro Global ---
+        $materias = Materia::with('curso')->orderBy('nombre')->get();
         $gestiones = Gestion::orderBy('anio', 'desc')->get();
         $gestionActiva = Gestion::where('es_activa', true)->first();
 
@@ -28,193 +34,180 @@ class ReporteController extends Controller
     }
 
     /**
-     * Genera el reporte PDF filtrado por Fechas y Curso/Materia
+     * PDF de asistencias de una materia dentro de un rango de la gestion elegida.
      */
     public function generarReporteFechas(Request $request)
     {
-        $request->validate([
+        $datosValidados = $request->validate([
             'materia_id' => 'required|exists:materias,id',
-            'fecha_inicio' => 'required|date',
-            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
+            'gestion_id' => 'nullable|integer|exists:gestiones,id',
+            'fecha_inicio' => 'required|date_format:Y-m-d',
+            'fecha_fin' => 'required|date_format:Y-m-d|after_or_equal:fecha_inicio',
         ]);
 
-        $materia = Materia::with('curso')->findOrFail($request->materia_id);
-        $fechaInicio = $request->fecha_inicio;
-        $fechaFin = $request->fecha_fin;
+        $gestion = $this->resolverGestion($datosValidados['gestion_id'] ?? null);
+        $fechaInicio = $datosValidados['fecha_inicio'];
+        $fechaFin = $datosValidados['fecha_fin'];
 
-        // Determinamos qué gestión consultar (la enviada por el filtro, o la activa por defecto)
-        $gestionId = $request->gestion_id ?? Gestion::where('es_activa', true)->value('id');
+        if (substr($fechaInicio, 0, 4) !== $gestion->anio
+            || substr($fechaFin, 0, 4) !== $gestion->anio) {
+            throw ValidationException::withMessages([
+                'fecha_inicio' => 'El rango de fechas debe pertenecer a la gestion seleccionada (' . $gestion->anio . ').',
+            ]);
+        }
 
-        $totalClases = Asistencia::where('materia_id', $materia->id)
-                        ->whereBetween('fecha', [$fechaInicio, $fechaFin])
-                        ->distinct('fecha')
-                        ->count();
-        if ($totalClases == 0) $totalClases = 1;
+        $materia = Materia::with('curso')->findOrFail($datosValidados['materia_id']);
+        [$datos, $totalClases] = $this->datosPorMateria($materia, $gestion, $fechaInicio, $fechaFin);
 
-        // --- CÓDIGO CORREGIDO PARA SOPORTAR GESTIONES E INSCRIPCIONES ---
-        // Buscamos a los estudiantes que estén inscritos en este curso y en esta gestión específica
-        $estudiantes = Estudiante::whereHas('inscripciones', function($query) use ($materia, $gestionId) {
-                            $query->where('curso_id', $materia->curso_id)
-                                  ->where('gestion_id', $gestionId);
-                        })
-                        ->with('usuario') 
-                        ->join('usuarios', 'usuarios.id', '=', 'estudiantes.user_id')
-                        ->select('estudiantes.*') 
-                        ->orderBy('usuarios.nombre_completo', 'asc') 
-                        ->get();
-        // --- FIN DE LA CORRECCIÓN ---
+        $pdf = Pdf::loadView('reportes.reporte_fechas', compact(
+            'materia', 'datos', 'totalClases', 'fechaInicio', 'fechaFin', 'gestion'
+        ));
 
-        $datos = $estudiantes->map(function($est) use ($materia, $fechaInicio, $fechaFin, $totalClases) {
-            
-            $asistencias = Asistencia::where('estudiante_id', $est->id)
-                            ->where('materia_id', $materia->id)
-                            ->whereBetween('fecha', [$fechaInicio, $fechaFin])
-                            ->get();
-
-            $puntos = 0;
-            foreach ($asistencias as $asis) {
-                if ($asis->estado == 'presente' || $asis->estado == 'licencia') $puntos += 1;
-                if ($asis->estado == 'atraso') $puntos += 0.5;
-            }
-            $porcentaje = round(($puntos / $totalClases) * 100);
-
-            return [
-                'nombre' => $est->usuario->nombre_completo,
-                'matricula' => $est->matricula,
-                'asistencias_puntos' => $puntos,
-                'porcentaje' => $porcentaje,
-                'riesgo' => $porcentaje < 80
-            ];
-        });
-        
-        $pdf = Pdf::loadView('reportes.reporte_fechas', compact('materia', 'datos', 'totalClases', 'fechaInicio', 'fechaFin'));
-        return $pdf->stream('Reporte-'.$materia->nombre.'.pdf');
+        return $pdf->stream('Reporte-' . $materia->nombre . '.pdf');
     }
 
-
     /**
-     * (Esta es la que usa el Docente)
-     * Genera el reporte PDF de la lista oficial (Completo)
+     * PDF oficial del docente por materia y gestion, sin mezclar anios.
      */
     public function listaAsistenciaPorMateria(Request $request, $idMateria)
     {
+        $request->validate(['gestion_id' => 'nullable|integer|exists:gestiones,id']);
+        $gestion = $this->resolverGestion($request->input('gestion_id'));
         $materia = Materia::with(['curso', 'docentes.usuario'])->findOrFail($idMateria);
-        
-        $totalClases = Asistencia::where('materia_id', $idMateria)->distinct('fecha')->count();
-        if ($totalClases == 0) $totalClases = 1;
 
-        $gestionId = $request->gestion_id ?? Gestion::where('es_activa', true)->value('id');
+        [$datos, $totalClases] = $this->datosPorMateria(
+            $materia,
+            $gestion,
+            $gestion->anio . '-01-01',
+            $gestion->anio . '-12-31'
+        );
 
-        // --- CÓDIGO CORREGIDO PARA SOPORTAR GESTIONES ---
-        $estudiantes = Estudiante::whereHas('inscripciones', function($query) use ($materia, $gestionId) {
-                            $query->where('curso_id', $materia->curso_id)
-                                  ->where('gestion_id', $gestionId);
-                        })
-                        ->with('usuario')
-                        ->join('usuarios', 'usuarios.id', '=', 'estudiantes.user_id')
-                        ->select('estudiantes.*')
-                        ->orderBy('usuarios.nombre_completo', 'asc')
-                        ->get();
-        // --- FIN DE LA CORRECCIÓN ---
+        $pdf = Pdf::loadView('reportes.lista_asistencia', compact(
+            'materia', 'datos', 'totalClases', 'gestion'
+        ));
 
-        $datos = $estudiantes->map(function($est) use ($idMateria, $totalClases) {
-            $asistencias = Asistencia::where('estudiante_id', $est->id)->where('materia_id', $idMateria)->get();
-            
-            $puntos = 0;
-            foreach ($asistencias as $asis) {
-                if ($asis->estado == 'presente' || $asis->estado == 'licencia') $puntos += 1;
-                if ($asis->estado == 'atraso') $puntos += 0.5;
-            }
-            $porcentaje = round(($puntos / $totalClases) * 100);
-
-            return [
-                'nombre' => $est->usuario->nombre_completo,
-                'matricula' => $est->matricula,
-                'asistencias_puntos' => $puntos,
-                'porcentaje' => $porcentaje,
-                'riesgo' => $porcentaje < 80
-            ];
-        });
-
-        $pdf = Pdf::loadView('reportes.lista_asistencia', compact('materia', 'datos', 'totalClases'));
-        return $pdf->stream('Lista-'.$materia->nombre.'.pdf');
+        return $pdf->stream('Lista-' . $materia->nombre . '.pdf');
     }
 
     /**
-     * Genera el PDF del historial de asistencias personal de un estudiante.
+     * PDF del historial del estudiante en la gestion seleccionada.
      */
     public function generarHistorialPersonal(Request $request)
     {
-        // 1. Obtener el estudiante logueado
-        $estudiante = \Illuminate\Support\Facades\Auth::user()->estudiante;
+        $request->validate(['gestion_id' => 'nullable|integer|exists:gestiones,id']);
+
+        $estudiante = Auth::user()?->estudiante;
         if (!$estudiante) {
             return redirect()->back()->with('error', 'Perfil de estudiante no encontrado.');
         }
 
-        // 2. Obtener las materias dependiendo de la gestión seleccionada o la activa
-        $gestionId = $request->gestion_id ?? Gestion::where('es_activa', true)->value('id');
-        
-        $inscripcion = $estudiante->inscripciones()->where('gestion_id', $gestionId)->first();
+        $gestion = $this->resolverGestion($request->input('gestion_id'));
+        $inscripcion = $estudiante->inscripciones()
+            ->where('gestion_id', $gestion->id)
+            ->with('curso.materias')
+            ->first();
+
         if (!$inscripcion) {
-            return redirect()->back()->with('error', 'No tienes cursos registrados en esta gestión.');
+            return redirect()->back()->with('error', 'No tienes cursos registrados en esta gestion.');
         }
 
-        $materias = $inscripcion->curso->materias;
+        $curso = $inscripcion->curso;
+        $fechaInicio = $gestion->anio . '-01-01';
+        $fechaFin = $gestion->anio . '-12-31';
+        $licencias = Licencia::where('estudiante_id', $estudiante->id)
+            ->where('estado', 'aprobada')
+            ->whereDate('fecha_inicio', '<=', $fechaFin)
+            ->whereDate('fecha_fin', '>=', $fechaInicio)
+            ->get();
 
-        // 3. Preparar los datos
         $datos = [];
-        
-        foreach ($materias as $materia) {
-            // Total clases dictadas en esta materia
-            $totalClases = Asistencia::where('materia_id', $materia->id)
-                            ->distinct('fecha')
-                            ->count();
-            if ($totalClases == 0) $totalClases = 1;
+        foreach ($curso->materias as $materia) {
+            $totalClases = $this->estadisticas->totalClases($materia->id, $gestion->anio);
 
-            // Historial del estudiante en esta materia
             $historial = Asistencia::where('estudiante_id', $estudiante->id)
-                            ->where('materia_id', $materia->id)
-                            ->orderBy('fecha', 'asc') 
-                            ->get();
+                ->where('materia_id', $materia->id)
+                ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+                ->orderBy('fecha')
+                ->get();
 
-            // Calcular puntos
-            $puntos = 0;
-            foreach ($historial as $asis) {
-                if ($asis->estado == 'presente' || $asis->estado == 'licencia') $puntos += 1;
-                if ($asis->estado == 'atraso') $puntos += 0.5;
-            }
+            $resumen = $this->estadisticas->calcular($historial, $licencias, $totalClases);
 
-            $porcentaje = round(($puntos / $totalClases) * 100);
-
-            $datos[] = [
+            $datos[] = array_merge($resumen, [
                 'materia_nombre' => $materia->nombre,
                 'total_clases' => $totalClases,
-                'puntos' => $puntos,
-                'porcentaje' => $porcentaje,
-                'riesgo' => $porcentaje < 80,
-                'detalle' => $historial 
-            ];
+                'detalle' => $historial,
+            ]);
         }
 
-        // 4. Cargar la vista HTML y generar el PDF
-        $pdf = Pdf::loadView('reportes.historial_personal', compact('estudiante', 'datos'));
-        
-        return $pdf->stream('Historial-'.$estudiante->usuario->nombre_completo.'.pdf');
+        $pdf = Pdf::loadView('reportes.historial_personal', compact(
+            'estudiante', 'curso', 'gestion', 'datos'
+        ));
+
+        return $pdf->stream('Historial-' . $estudiante->usuario->nombre_completo . '.pdf');
     }
 
-    // --- MÉTODO AUXILIAR PARA TRADUCIR NOMBRES ---
-    private function obtenerPalabraClave($nombreCompleto) 
+    /**
+     * Datos del PDF de una materia. Consultas agrupadas para evitar N+1.
+     */
+    private function datosPorMateria(Materia $materia, Gestion $gestion, string $desde, string $hasta): array
     {
-        $mapa = [
-            'Sistemas Informáticos' => 'Sistemas',
-            'Mecánica Automotriz'   => 'Automotriz',
-            'Mecánica Industrial'   => 'Mec. Industrial',
-            'Electromecánica'       => 'Electromecánica',
-            'Electrónica'           => 'Electrónica',
-            'Construcción Civil'    => 'Construcción Civil',
-        ];
+        $totalClases = $this->estadisticas->totalClases($materia->id, $gestion->anio, $desde, $hasta);
 
-        $nombreLimpio = trim($nombreCompleto);
-        return $mapa[$nombreLimpio] ?? $nombreLimpio;
+        // Se incluyen los estudiantes inscritos en la gestion consultada,
+        // incluso si posteriormente se retiraron, para conservar el historial.
+        $estudiantes = Estudiante::whereHas('inscripciones', function ($consulta) use ($materia, $gestion) {
+                $consulta->where('curso_id', $materia->curso_id)
+                    ->where('gestion_id', $gestion->id);
+            })
+            ->with('usuario')
+            ->join('usuarios', 'usuarios.id', '=', 'estudiantes.user_id')
+            ->select('estudiantes.*')
+            ->orderBy('usuarios.nombre_completo')
+            ->get();
+
+        $ids = $estudiantes->pluck('id');
+
+        $asistencias = Asistencia::where('materia_id', $materia->id)
+            ->whereIn('estudiante_id', $ids)
+            ->whereBetween('fecha', [$desde, $hasta])
+            ->get()
+            ->groupBy('estudiante_id');
+
+        $licencias = Licencia::where('estado', 'aprobada')
+            ->whereIn('estudiante_id', $ids)
+            ->whereDate('fecha_inicio', '<=', $hasta)
+            ->whereDate('fecha_fin', '>=', $desde)
+            ->get()
+            ->groupBy('estudiante_id');
+
+        $datos = $estudiantes->map(function ($estudiante) use ($asistencias, $licencias, $totalClases) {
+            $resumen = $this->estadisticas->calcular(
+                $asistencias->get($estudiante->id, collect()),
+                $licencias->get($estudiante->id, collect()),
+                $totalClases
+            );
+
+            return array_merge($resumen, [
+                'nombre' => $estudiante->usuario->nombre_completo,
+                'matricula' => $estudiante->matricula,
+            ]);
+        });
+
+        return [$datos, $totalClases];
+    }
+
+    private function resolverGestion(?string $gestionId): Gestion
+    {
+        $gestion = $gestionId
+            ? Gestion::find($gestionId)
+            : Gestion::where('es_activa', true)->first();
+
+        if (!$gestion) {
+            throw ValidationException::withMessages([
+                'gestion_id' => 'No hay una gestion academica activa. Seleccione una gestion.',
+            ]);
+        }
+
+        return $gestion;
     }
 }

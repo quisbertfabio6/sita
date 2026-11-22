@@ -38,7 +38,11 @@
         </tr>
         <tr>
             <td class="label">CURSO:</td>
-            <td>{{ $curso->nombre ?? $estudiante->inscripciones()->whereHas('gestion', fn($q) => $q->where('es_activa', true))->with('curso')->first()?->curso?->nombre ?? 'Sin Curso Asignado' }}</td>
+            <td>{{ $curso->nombre ?? 'Sin Curso Asignado' }}</td>
+        </tr>
+        <tr>
+            <td class="label">GESTIÓN:</td>
+            <td>{{ $gestion->anio }}</td>
         </tr>
         <tr>
             <td class="label">FECHA REPORTE:</td>
@@ -64,7 +68,9 @@
                     <td style="text-align: center;">{{ $materia['puntos'] }}</td>
                     <td style="text-align: center; font-size: 14px; font-weight: bold;">{{ $materia['porcentaje'] }}%</td>
                     <td style="text-align: center;">
-                        @if($materia['riesgo'])
+                        @if($materia['sin_clases'])
+                            <span>SIN CLASES</span>
+                        @elseif($materia['riesgo'])
                             <span class="rojo">EN RIESGO</span>
                         @else
                             <span class="verde">REGULAR</span>
@@ -73,6 +79,7 @@
                 </tr>
             </table>
 
+            <p style="font-size: 10px; color: #666;">Presentes: {{ $materia['conteos']['presente'] }} | Atrasos: {{ $materia['conteos']['atraso'] }} | Faltas: {{ $materia['conteos']['falta'] }} | Licencias: {{ $materia['conteos']['licencia'] }}</p>
             @if($materia['detalle']->count() > 0)
                 <table class="lista">
                     <thead>
@@ -100,6 +107,7 @@
         </div>
     @endforeach
 
+    <p style="font-size: 9px; color: #666;">Las licencias cuentan como asistencia solo cuando están aprobadas. Las clases se cuentan por fechas con registros, no por sesiones programadas.</p>
     <div class="footer">
         Generado por Sistema SITA - {{ date('Y') }}
     </div>
