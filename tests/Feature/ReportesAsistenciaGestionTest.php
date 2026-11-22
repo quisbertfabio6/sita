@@ -75,7 +75,9 @@ class ReportesAsistenciaGestionTest extends TestCase
 
     private function pdfSimulado(string $vista, callable $verificarDatos): void
     {
-        $pdf = Mockery::mock();
+        // Pdf::loadView() declara que devuelve Barryvdh\DomPDF\PDF.
+        // Un mock generico produce un TypeError en las pruebas de PDF.
+        $pdf = Mockery::mock(\Barryvdh\DomPDF\PDF::class);
         $pdf->shouldReceive('stream')
             ->once()
             ->andReturn(response('PDF de prueba', 200, ['Content-Type' => 'application/pdf']));
