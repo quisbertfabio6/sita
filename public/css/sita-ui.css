@@ -1,0 +1,216 @@
+/*
+ * SITA | Fase 5: mejoras visuales compartidas del panel web.
+ * Alcance: presentacion, adaptacion movil y accesibilidad.
+ * No modifica formularios, rutas, validaciones ni comportamiento del sistema.
+ */
+:root {
+    --sita-rojo: #b71c1c;
+    --sita-rojo-oscuro: #8e1717;
+    --sita-rojo-claro: #fff1f1;
+    --sita-texto: #273142;
+    --sita-borde: #e6e9ef;
+    --sita-fondo: #f5f7fa;
+    --sita-sombra: 0 6px 24px rgba(22, 34, 51, 0.055);
+}
+
+.sita-app {
+    color: var(--sita-texto);
+    background: var(--sita-fondo);
+    -webkit-font-smoothing: antialiased;
+}
+
+.sita-app .navbar-ita {
+    background: linear-gradient(110deg, #9f1818 0%, #c62828 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sita-app .navbar-ita .navbar-brand {
+    letter-spacing: 0.035em;
+}
+
+.sita-app .navbar-ita .nav-link {
+    border-radius: 9px;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.sita-app .navbar-ita .nav-link.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.sita-app .navbar-ita .nav-link:focus-visible,
+.sita-app .navbar-ita .navbar-toggler:focus-visible,
+.sita-app .navbar-ita .dropdown-item:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+.sita-skip-link {
+    position: fixed;
+    z-index: 1100;
+    top: -80px;
+    left: 12px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--sita-rojo-oscuro);
+    font-weight: 700;
+    box-shadow: var(--sita-sombra);
+}
+
+.sita-skip-link:focus {
+    top: 10px;
+}
+
+.sita-app .main-content {
+    padding-top: 1.6rem;
+    padding-bottom: 2.5rem;
+}
+
+.sita-app .main-content > .container-fluid {
+    max-width: 1500px;
+    margin-inline: auto;
+}
+
+.sita-app .main-content h1,
+.sita-app .main-content h2,
+.sita-app .main-content h3,
+.sita-app .main-content h4 {
+    letter-spacing: -0.02em;
+}
+
+.sita-app .main-content .card {
+    border-radius: 16px;
+    border-color: var(--sita-borde);
+    box-shadow: var(--sita-sombra);
+}
+
+.sita-app .main-content .card-header {
+    border-radius: 16px 16px 0 0;
+}
+
+.sita-app .main-content .card-hover {
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.sita-app .main-content .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(22, 34, 51, 0.11);
+}
+
+.sita-app .main-content .btn {
+    border-radius: 9px;
+    font-weight: 600;
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.sita-app .main-content .btn-primary {
+    background-color: var(--sita-rojo);
+    border-color: var(--sita-rojo);
+}
+
+.sita-app .main-content .btn-primary:hover,
+.sita-app .main-content .btn-primary:active {
+    background-color: var(--sita-rojo-oscuro);
+    border-color: var(--sita-rojo-oscuro);
+}
+
+.sita-app .main-content .btn-outline-primary {
+    color: var(--sita-rojo);
+    border-color: var(--sita-rojo);
+}
+
+.sita-app .main-content .btn-outline-primary:hover,
+.sita-app .main-content .btn-outline-primary:active {
+    color: #fff;
+    background-color: var(--sita-rojo);
+    border-color: var(--sita-rojo);
+}
+
+.sita-app .main-content .form-control,
+.sita-app .main-content .form-select {
+    border-color: #d9dee7;
+    border-radius: 9px;
+}
+
+.sita-app .main-content .form-control:focus,
+.sita-app .main-content .form-select:focus {
+    border-color: var(--sita-rojo);
+    box-shadow: 0 0 0 0.2rem rgba(183, 28, 28, 0.13);
+}
+
+.sita-app .main-content .btn:focus-visible,
+.sita-app .main-content a:focus-visible,
+.sita-app .main-content input:focus-visible,
+.sita-app .main-content select:focus-visible,
+.sita-app .main-content textarea:focus-visible {
+    outline: 3px solid var(--sita-rojo);
+    outline-offset: 2px;
+}
+
+.sita-app .main-content .table-responsive {
+    max-width: 100%;
+}
+
+.sita-app .main-content .table thead th {
+    background-color: #f8f9fb;
+    color: #4b5563;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.sita-app .main-content .table tbody td {
+    vertical-align: middle;
+}
+
+@media (max-width: 991.98px) {
+    .sita-app .navbar-ita {
+        padding: 0.7rem 1rem;
+    }
+
+    .sita-app .navbar-ita .navbar-collapse {
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
+    }
+
+    .sita-app .navbar-ita .navbar-nav {
+        padding-top: 0.6rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .sita-app .main-content {
+        padding-top: 1rem;
+        padding-bottom: 1.5rem;
+    }
+
+    .sita-app .main-content > .container-fluid {
+        padding-inline: 12px !important;
+    }
+
+    .sita-app .main-content h2 {
+        font-size: 1.45rem;
+        line-height: 1.3;
+    }
+
+    .sita-app .main-content h3 {
+        font-size: 1.25rem;
+    }
+
+    .sita-app .main-content .card {
+        border-radius: 12px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sita-app .main-content .card-hover,
+    .sita-app .main-content .btn,
+    .sita-app .navbar-ita .nav-link {
+        transition: none;
+    }
+
+    .sita-app .main-content .card-hover:hover {
+        transform: none;
+    }
+}
