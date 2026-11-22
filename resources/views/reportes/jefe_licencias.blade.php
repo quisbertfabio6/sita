@@ -60,7 +60,7 @@
             <tr>
                 <td style="text-align: center;">{{ $index + 1 }}</td>
                 <td>{{ $lic->estudiante->usuario->nombre_completo }}</td>
-                <td>{{ $lic->estudiante->curso->nombre }}</td>
+                <td>{{ $lic->cursoDeLaSolicitud()?->nombre ?? 'Sin curso registrado' }}</td>
                 <td class="estado-{{$lic->estado}}">{{ ucfirst($lic->estado) }}</td>
                 <td style="font-size: 9px;">{{ $lic->motivo }}</td>
                 <td style="font-size: 9px;">{{ $lic->comentario_admin }}</td>
