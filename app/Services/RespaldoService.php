@@ -45,7 +45,9 @@ class RespaldoService
 
         $nombre = 'sita-completo-' . now()->format('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.zip';
         $archivoZip = $directorio . DIRECTORY_SEPARATOR . $nombre;
-        $archivoSql = tempnam($directorio, '.sita-sql-');
+        // El SQL temporal no debe quedar dentro del árbol que se comprime.
+        // En Windows, ZipArchive lee los archivos al cerrar el ZIP.
+        $archivoSql = tempnam(storage_path('framework'), '.sita-sql-');
 
         try {
             if ($archivoSql === false) {
@@ -179,9 +181,11 @@ class RespaldoService
                         }
 
                         $ruta = $elemento->getRealPath();
+
+                        // Laravel puede entregar una ruta con '/' y Windows con '\\'.
+                        // Si no se normalizan, el ZIP termina intentando incluirse a sí mismo.
                         return $ruta !== false
-                            && $ruta !== $directorioRespaldos
-                            && !str_starts_with($ruta, $directorioRespaldos . DIRECTORY_SEPARATOR);
+                            && !self::estaDentroDeDirectorio($ruta, $directorioRespaldos);
                     }
                 )
             );
@@ -201,6 +205,23 @@ class RespaldoService
         }
 
         return $cantidad;
+    }
+
+    /**
+     * Compara rutas con separadores uniformes. Evita incluir el directorio
+     * donde se está escribiendo el propio ZIP (y sus archivos temporales).
+     */
+    private static function estaDentroDeDirectorio(string $ruta, string $directorio): bool
+    {
+        $ruta = str_replace('\\', '/', $ruta);
+        $directorio = rtrim(str_replace('\\', '/', $directorio), '/');
+
+        if (DIRECTORY_SEPARATOR === '\\') {
+            $ruta = strtolower($ruta);
+            $directorio = strtolower($directorio);
+        }
+
+        return $ruta === $directorio || str_starts_with($ruta, $directorio . '/');
     }
 
     public function listar(): array
