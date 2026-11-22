@@ -77,6 +77,8 @@ class SeguridadCredencialesTokensTest extends TestCase
         $this->withToken($token)->getJson('/api/user')->assertOk();
 
         $this->travelTo(Carbon::parse('2026-06-02 09:00:00'));
+        // Forzar que el guard lea nuevamente el token en la siguiente peticion.
+        $this->app['auth']->forgetGuards();
         $this->withToken($token)->getJson('/api/user')->assertUnauthorized();
     }
 
@@ -90,6 +92,7 @@ class SeguridadCredencialesTokensTest extends TestCase
             ->assertOk()->assertJsonPath('message', 'Sesion cerrada correctamente');
 
         $this->assertDatabaseMissing('personal_access_tokens', ['id' => $id]);
+        $this->app['auth']->forgetGuards();
         $this->withToken($token)->getJson('/api/user')->assertUnauthorized();
     }
 
