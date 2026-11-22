@@ -35,6 +35,31 @@
         </div>
     @endif
 
+    <form action="{{ route('jefe.licencias') }}" method="GET" class="row g-3 align-items-end mb-4">
+        <div class="col-md-5">
+            <label for="categoria_id" class="form-label fw-bold">Categoría de licencia</label>
+            <select name="categoria_id" id="categoria_id" class="form-select">
+                <option value="">Todas las categorías</option>
+                @foreach($categorias as $categoria)
+                    <option value="{{ $categoria->id }}" @selected((string) request('categoria_id') === (string) $categoria->id)>{{ $categoria->nombre }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="estado" class="form-label fw-bold">Estado</label>
+            <select name="estado" id="estado" class="form-select">
+                <option value="">Todos los estados</option>
+                <option value="pendiente" @selected(request('estado') === 'pendiente')>Pendiente</option>
+                <option value="aprobada" @selected(request('estado') === 'aprobada')>Aprobada</option>
+                <option value="rechazada" @selected(request('estado') === 'rechazada')>Rechazada</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="{{ route('jefe.licencias') }}" class="btn btn-outline-secondary">Limpiar</a>
+        </div>
+    </form>
+
     <div class="card soft-card p-4">
         <div class="table-responsive">
             <table class="table table-modern w-100 mb-0">
@@ -64,8 +89,16 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="text-muted fst-italic" style="max-width: 250px;">
-                            "{{ Str::limit($licencia->motivo, 40) }}"
+                        <td class="text-muted" style="max-width: 250px;">
+                            @if($licencia->categoria)
+                                <span class="badge bg-light text-dark border">{{ $licencia->categoria->nombre }}</span>
+                                @if($licencia->subcategoria)
+                                    <div class="small fw-bold mt-1">{{ $licencia->subcategoria->nombre }}</div>
+                                @endif
+                            @else
+                                <span class="badge bg-light text-muted border">Sin categoría (anterior)</span>
+                            @endif
+                            <div class="fst-italic mt-1">"{{ Str::limit($licencia->motivo, 70) }}"</div>
                         </td>
                         <td>
                             <div class="small fw-bold text-dark">
@@ -108,13 +141,14 @@
                     <tr>
                         <td colspan="6" class="text-center py-5 text-muted">
                             <i class="fas fa-inbox fa-3x mb-3 text-light"></i><br>
-                            No tienes solicitudes pendientes en tus carreras asignadas.
+                            No se encontraron solicitudes para los filtros seleccionados.
                         </td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+        <div class="mt-3">{{ $licencias->links('pagination::bootstrap-5') }}</div>
     </div>
 
     <div class="modal fade" id="modalGestion" tabindex="-1">
