@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Licencia;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class CupoLicenciasSemestralService
 {
