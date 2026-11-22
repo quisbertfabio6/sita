@@ -1,0 +1,181 @@
+/*
+ * SITA | Tema oscuro del sistema web.
+ * Solo presentación. No modifica datos, sesiones, validaciones ni formularios.
+ */
+.sita-theme-switch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 160ms ease;
+}
+.sita-theme-switch:hover,
+.sita-theme-switch:focus-visible {
+    background: rgba(255,255,255,0.24);
+    color: #fff;
+}
+.sita-theme-switch:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+.login-theme-switch {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 5;
+    background: rgba(25,32,44,0.82);
+}
+html[data-sita-theme="dark"] {
+    color-scheme: dark;
+    --bs-body-color: #e9eef7;
+    --bs-body-bg: #111827;
+    --bs-border-color: #3b475b;
+    --bs-secondary-color: #b9c4d5;
+    --bs-tertiary-bg: #1c2737;
+    --bs-secondary-bg: #1c2737;
+    --bs-table-bg: #1c2737;
+    --bs-table-color: #e9eef7;
+    --sita-texto: #e9eef7;
+    --sita-fondo: #111827;
+    --sita-borde: #3b475b;
+    --sita-sombra: 0 8px 25px rgba(0,0,0,0.22);
+}
+html[data-sita-theme="dark"] body.sita-app {
+    background: #111827;
+    color: #e9eef7;
+}
+html[data-sita-theme="dark"] .sita-app .main-content :is(
+    .card, .card-header, .card-footer, .modal-content, .dropdown-menu,
+    .list-group-item, .soft-card, .materia-box, .search-modal,
+    .bg-white, .bg-light, .table-modal, .input-group-text
+) {
+    background-color: #1c2737 !important;
+    color: #e9eef7;
+    border-color: #3b475b !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content :is(
+    .text-dark, .text-body, .text-secondary, .text-muted,
+    .form-label, .card-title, .modal-title
+),
+html[data-sita-theme="dark"] .sita-app .navbar-ita :is(.dropdown-item, .dropdown-item .text-muted) {
+    color: #d8e2f0 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .text-danger {
+    color: #ff8585 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .text-primary {
+    color: #90b8ff !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .text-success {
+    color: #7bdbac !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .text-warning {
+    color: #ffd27b !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content :is(
+    .form-control, .form-select, .input-group-text, .search-modal input,
+    input[type="date"], textarea, select
+) {
+    background-color: #111b2a !important;
+    color: #f1f5fb !important;
+    border-color: #536179 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content :is(input, textarea)::placeholder {
+    color: #aebbd0;
+    opacity: 1;
+}
+html[data-sita-theme="dark"] .sita-app .main-content :is(
+    .form-control, .form-select, .search-modal input
+):focus {
+    border-color: #f28d8d !important;
+    box-shadow: 0 0 0 0.2rem rgba(242,141,141,0.2);
+}
+html[data-sita-theme="dark"] .sita-app .main-content :is(
+    .table, .table-hover, .table-striped
+) {
+    --bs-table-color: #e9eef7;
+    --bs-table-bg: #1c2737;
+    --bs-table-border-color: #3b475b;
+    --bs-table-striped-bg: #243449;
+    --bs-table-striped-color: #e9eef7;
+    --bs-table-hover-bg: #2a3b52;
+    --bs-table-hover-color: #fff;
+    color: #e9eef7;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .table :is(th, td),
+html[data-sita-theme="dark"] .sita-app .main-content .table thead th {
+    background-color: #1c2737 !important;
+    color: #e9eef7 !important;
+    border-color: #3b475b !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content :is(
+    .border, .border-bottom, .border-top, .border-secondary, hr
+) {
+    border-color: #3b475b !important;
+}
+html[data-sita-theme="dark"] .sita-app .navbar-ita .dropdown-menu {
+    background: #1c2737;
+    border: 1px solid #3b475b;
+}
+html[data-sita-theme="dark"] .sita-app .navbar-ita .dropdown-item:hover,
+html[data-sita-theme="dark"] .sita-app .navbar-ita .dropdown-item:focus {
+    background: #2b3b50;
+    color: #fff !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .btn-outline-secondary {
+    color: #e9eef7;
+    border-color: #8090a7;
+}
+html[data-sita-theme="dark"] .sita-app .main-content a:not(.btn) {
+    color: #ff9696;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .badge.bg-light {
+    color: #e9eef7 !important;
+}
+html[data-sita-theme="dark"] .sita-app .main-content .alert-light {
+    background: #25354b;
+    color: #e9eef7;
+    border-color: #3b475b;
+}
+html[data-sita-theme="dark"] .login-card {
+    background: rgba(26,37,54,0.96);
+    color: #e9eef7;
+    border: 1px solid #4b5a70;
+}
+html[data-sita-theme="dark"] .login-title,
+html[data-sita-theme="dark"] .login-card :is(.text-secondary, .text-muted) {
+    color: #e9eef7 !important;
+}
+html[data-sita-theme="dark"] .login-subtitle {
+    color: #ff9898;
+}
+html[data-sita-theme="dark"] .login-card :is(.form-control, .input-group-text) {
+    background: #111b2a !important;
+    color: #f1f5fb !important;
+    border-color: #536179 !important;
+}
+html[data-sita-theme="dark"] .login-card .form-control::placeholder {
+    color: #acb9ca;
+}
+html[data-sita-theme="dark"] .login-card .btn-outline-secondary {
+    color: #e9eef7;
+    border-color: #536179;
+}
+html[data-sita-theme="dark"] .login-wrapper::before {
+    background: rgba(0,0,0,0.72);
+}
+@media (max-width: 575.98px) {
+    .sita-theme-switch { font-size: 0.82rem; padding: 0.45rem 0.65rem; }
+    .login-theme-switch { top: 10px; right: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sita-theme-switch { transition: none; }
+}
