@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 // Modelos
 use App\Models\Licencia;
+use App\Models\CategoriaLicencia;
 use App\Models\Estudiante;
 use App\Models\Curso;
 use App\Models\Materia;
@@ -79,19 +80,35 @@ class JefeController extends Controller
     }
 
     // 2. Solo mostrar solicitudes de las carreras y gestiones autorizadas.
-    public function licencias(AccesoLicenciasJefaturaService $acceso)
+    public function licencias(Request $request, AccesoLicenciasJefaturaService $acceso)
     {
+        $filtros = $request->validate([
+            'categoria_id' => 'nullable|integer|exists:categorias_licencia,id',
+            'estado' => 'nullable|in:pendiente,aprobada,rechazada',
+        ]);
+
         $jefe = Auth::user()->jefeCarrera;
         $licencias = $acceso->filtrarLicencias(Licencia::query(), $jefe)
+            ->when(isset($filtros['categoria_id']), function ($consulta) use ($filtros) {
+                $consulta->where('categoria_id', $filtros['categoria_id']);
+            })
+            ->when(isset($filtros['estado']), function ($consulta) use ($filtros) {
+                $consulta->where('estado', $filtros['estado']);
+            })
             ->with([
+                'categoria',
+                'subcategoria',
                 'estudiante.usuario',
                 'estudiante.inscripciones.gestion',
                 'estudiante.inscripciones.curso',
             ])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(25)
+            ->withQueryString();
 
-        return view('jefe.licencias.index', compact('licencias'));
+        $categorias = CategoriaLicencia::orderBy('orden')->orderBy('nombre')->get();
+
+        return view('jefe.licencias.index', compact('licencias', 'categorias'));
     }
 
     // 3. Aprobar/rechazar: comprobar el acceso en servidor, no solo en la tabla.
@@ -137,7 +154,8 @@ class JefeController extends Controller
     // 4. Formulario Reportes
     public function showReportForm()
     {
-        return view('jefe.reportes.index');
+        $categorias = CategoriaLicencia::orderBy('orden')->orderBy('nombre')->get();
+        return view('jefe.reportes.index', compact('categorias'));
     }
 
     // 5. Reporte PDF limitado a las mismas licencias que puede gestionar el jefe.
@@ -147,11 +165,16 @@ class JefeController extends Controller
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
             'estado' => 'required|in:todas,pendiente,aprobada,rechazada',
+            'categoria_id' => 'nullable|integer|exists:categorias_licencia,id',
         ]);
 
         $jefe = $request->user()->jefeCarrera;
         $query = $acceso->filtrarLicencias(Licencia::query(), $jefe)
             ->whereBetween('fecha_inicio', [$datos['fecha_inicio'], $datos['fecha_fin']]);
+
+        if (isset($datos['categoria_id'])) {
+            $query->where('categoria_id', $datos['categoria_id']);
+        }
 
         if ($datos['estado'] !== 'todas') {
             $query->where('estado', $datos['estado']);
@@ -163,6 +186,8 @@ class JefeController extends Controller
                 'estudiante.inscripciones.gestion',
                 'estudiante.inscripciones.curso',
                 'jefeCarrera',
+                'categoria',
+                'subcategoria',
             ])
             ->orderBy('fecha_inicio', 'asc')
             ->get();
@@ -171,6 +196,9 @@ class JefeController extends Controller
             'fecha_inicio' => $datos['fecha_inicio'],
             'fecha_fin' => $datos['fecha_fin'],
             'estado' => $datos['estado'],
+            'categoria_nombre' => isset($datos['categoria_id'])
+                ? CategoriaLicencia::find($datos['categoria_id'])?->nombre
+                : 'Todas',
             'licencias' => $licencias,
         ]);
 

@@ -10,10 +10,18 @@ class Licencia extends Model
     use HasFactory;
     protected $table = 'licencias';
     protected $fillable = [
-        'estudiante_id', 'jefe_carrera_id', 'motivo', 
+        'estudiante_id', 'jefe_carrera_id', 'motivo', 'categoria_id', 'subcategoria_id', 
         'archivo_adjunto', 'fecha_inicio', 'fecha_fin', 
         'estado', 'comentario_admin'
     ];
+
+    public function categoria() {
+        return $this->belongsTo(CategoriaLicencia::class, 'categoria_id');
+    }
+
+    public function subcategoria() {
+        return $this->belongsTo(SubcategoriaLicencia::class, 'subcategoria_id');
+    }
 
     public function estudiante() {
         return $this->belongsTo(Estudiante::class);

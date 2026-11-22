@@ -39,6 +39,10 @@
             <td>{{ ucfirst($estado) }}</td>
         </tr>
         <tr>
+            <td class="label">CATEGORÍA:</td>
+            <td>{{ $categoria_nombre }}</td>
+        </tr>
+        <tr>
             <td class="label">FECHA REPORTE:</td>
             <td>{{ date('d/m/Y') }}</td>
         </tr>
@@ -51,7 +55,7 @@
                 <th style="width: 130px;">Estudiante</th>
                 <th style="width: 90px;">Curso</th>
                 <th style="width: 60px;">Estado</th>
-                <th>Motivo</th>
+                <th>Categoría / Motivo</th>
                 <th>Observación (Jefatura)</th>
             </tr>
         </thead>
@@ -62,7 +66,13 @@
                 <td>{{ $lic->estudiante->usuario->nombre_completo }}</td>
                 <td>{{ $lic->cursoDeLaSolicitud()?->nombre ?? 'Sin curso registrado' }}</td>
                 <td class="estado-{{$lic->estado}}">{{ ucfirst($lic->estado) }}</td>
-                <td style="font-size: 9px;">{{ $lic->motivo }}</td>
+                <td style="font-size: 9px;">
+                    <strong>{{ $lic->categoria?->nombre ?? 'Sin categoría (anterior)' }}</strong>
+                    @if($lic->subcategoria)
+                        - {{ $lic->subcategoria->nombre }}
+                    @endif
+                    <div>{{ $lic->motivo }}</div>
+                </td>
                 <td style="font-size: 9px;">{{ $lic->comentario_admin }}</td>
             </tr>
             @empty

@@ -36,6 +36,16 @@
                             </select>
                         </div>
 
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">4. Filtrar por categoría</label>
+                            <select name="categoria_id" class="form-select form-select-lg">
+                                <option value="">Todas las categorías</option>
+                                @foreach($categorias as $categoria)
+                                    <option value="{{ $categoria->id }}">{{ $categoria->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <div class="d-flex justify-content-end mt-5">
                             <button type="submit" class="btn btn-danger btn-lg px-5 fw-bold">
                                 <i class="fas fa-cogs me-2"></i> Generar Reporte

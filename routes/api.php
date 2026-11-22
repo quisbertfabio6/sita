@@ -71,6 +71,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     });
 
     Route::middleware('role:estudiante')->group(function () {
+        Route::get('/estudiante/categorias-licencia', [EstudianteApiController::class, 'categoriasLicencia']);
+        Route::get('/estudiante/licencias/cupo', [EstudianteApiController::class, 'cupoLicencias']);
         Route::post('/estudiante/licencias', [App\Http\Controllers\EstudiantePanelController::class, 'guardarLicencia']);
         Route::get('/estudiante/dashboard', [EstudianteApiController::class, 'dashboard']);
         Route::get('/estudiante/mis-licencias', [EstudianteApiController::class, 'misLicencias']);
