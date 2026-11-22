@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Models\Usuario;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 use App\Http\Controllers\Api\DocenteApiController;
 use App\Http\Controllers\Api\EstudianteApiController;
 
@@ -16,7 +16,7 @@ Route::post('/login', function (Request $request) {
     $request->validate([
         'email' => 'required|email',
         'password' => 'required',
-        'device_name' => 'required',
+        'device_name' => 'required|string|max:100',
     ]);
 
     $user = Usuario::where('email', $request->email)->first();
@@ -26,14 +26,14 @@ Route::post('/login', function (Request $request) {
     }
 
     $user->tokens()->delete();
-    $token = $user->createToken($request->device_name)->plainTextToken;
+    $token = $user->createToken($request->device_name, ['*'], now()->addDays(30))->plainTextToken;
 
     return response()->json([
         'token' => $token,
         'user' => $user,
         'rol' => $user->rol->nombre
     ]);
-});
+})->middleware('throttle:5,1');
 
 // 2. Ruta de Prueba (AHORA SÍ ES PÚBLICA)
 Route::get('/prueba', function () {
@@ -46,6 +46,19 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     Route::get('/user', function (Request $request) {
         return $request->user();
+    });
+
+    // Revocar el token del dispositivo que cierra sesion.
+    Route::post('/logout', function (Request $request) {
+        $token = $request->user()->currentAccessToken();
+
+        if (!$token instanceof PersonalAccessToken) {
+            return response()->json(['message' => 'Se requiere un token de acceso'], 400);
+        }
+
+        $token->delete();
+
+        return response()->json(['message' => 'Sesion cerrada correctamente']);
     });
 
     Route::middleware('role:docente')->group(function () {
