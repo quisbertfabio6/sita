@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <script>
+        (function () {
+            try {
+                document.documentElement.setAttribute(
+                    'data-sita-theme',
+                    localStorage.getItem('sita-web-theme') === 'dark' ? 'dark' : 'light'
+                );
+            } catch (_) {
+                document.documentElement.setAttribute('data-sita-theme', 'light');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -93,6 +105,7 @@
         }
     </style>
     <link href="{{ asset('css/sita-ui.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/sita-dark.css') }}" rel="stylesheet">
 </head>
 <body class="sita-app">
     <a class="sita-skip-link" href="#contenido-principal">Saltar al contenido principal</a>
@@ -181,6 +194,12 @@
                     @endif
                 </ul>
 
+                <button type="button" class="sita-theme-switch me-lg-3 mb-2 mb-lg-0"
+                    data-sita-theme-toggle aria-label="Activar modo oscuro" aria-pressed="false">
+                    <i class="fas fa-moon" data-sita-theme-icon aria-hidden="true"></i>
+                    <span data-sita-theme-text>Modo oscuro</span>
+                </button>
+
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userProfile" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -213,5 +232,6 @@
     </main>
 
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ asset('js/sita-theme.js') }}"></script>
 </body>
 </html>
