@@ -15,6 +15,8 @@ use App\Models\Usuario;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Mockery;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -247,4 +249,63 @@ class CategoriasLicenciasTest extends TestCase
             ->assertDontSee('Licencia familiar oculta')
             ->assertDontSee('Licencia ajena oculta');
     }
+
+    public function test_reporte_pdf_filtra_categoria_sin_incluir_otras(): void
+    {
+        $jefeUsuario = $this->usuario('jefe_carrera', 'jefe@sita.test');
+        JefeCarrera::create([
+            'user_id' => $jefeUsuario->id,
+            'carrera_asignada' => 'Sistemas Informáticos',
+        ]);
+
+        $gestion = Gestion::create(['anio' => '2026', 'es_activa' => true]);
+        $curso = Curso::create(['nombre' => 'Primero Sistemas', 'gestion' => '2026']);
+        $estudiante = $this->estudiante('sistemas@sita.test');
+        Inscripcion::create([
+            'estudiante_id' => $estudiante->id,
+            'curso_id' => $curso->id,
+            'gestion_id' => $gestion->id,
+            'estado' => 'Activo',
+        ]);
+
+        $salud = CategoriaLicencia::where('codigo', 'salud')->firstOrFail();
+        $familiar = CategoriaLicencia::where('codigo', 'familiar')->firstOrFail();
+        $propia = Licencia::create([
+            'estudiante_id' => $estudiante->id,
+            'motivo' => 'Motivo salud',
+            'categoria_id' => $salud->id,
+            'fecha_inicio' => '2026-05-01',
+            'fecha_fin' => '2026-05-02',
+        ]);
+        $otra = Licencia::create([
+            'estudiante_id' => $estudiante->id,
+            'motivo' => 'Motivo familiar',
+            'categoria_id' => $familiar->id,
+            'fecha_inicio' => '2026-05-01',
+            'fecha_fin' => '2026-05-02',
+        ]);
+
+        $pdf = Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('stream')->once()
+            ->andReturn(response('PDF de prueba', 200, ['Content-Type' => 'application/pdf']));
+
+        Pdf::shouldReceive('loadView')->once()
+            ->with('reportes.jefe_licencias', Mockery::on(function (array $datos) use ($propia, $otra) {
+                $ids = $datos['licencias']->pluck('id')->all();
+
+                return in_array($propia->id, $ids, true)
+                    && !in_array($otra->id, $ids, true)
+                    && $datos['categoria_nombre'] === 'Salud';
+            }))
+            ->andReturn($pdf);
+
+        $this->actingAs($jefeUsuario)
+            ->post(route('jefe.reportes.generar'), [
+                'fecha_inicio' => '2026-05-01',
+                'fecha_fin' => '2026-05-02',
+                'estado' => 'todas',
+                'categoria_id' => $salud->id,
+            ])->assertOk();
+    }
+
 }
