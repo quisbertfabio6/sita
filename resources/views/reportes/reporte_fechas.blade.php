@@ -36,7 +36,7 @@
             <td>CURSO: {{ $materia->curso->nombre }}</td>
         </tr>
         <tr>
-            <td>PERIODO: {{ $fechaInicio }} AL {{ $fechaFin }}</td>
+            <td>GESTIÓN: {{ $gestion->anio }} | PERIODO: {{ $fechaInicio }} AL {{ $fechaFin }}</td>
             <td>TOTAL CLASES DICTADAS: {{ $totalClases }}</td>
         </tr>
     </table>
@@ -47,6 +47,7 @@
                 <th style="width: 30px;">#</th>
                 <th>Estudiante</th>
                 <th>Matrícula</th>
+                <th style="width: 80px;">P / A / F / L</th>
                 <th style="width: 60px;">Asist. (Pts)</th>
                 <th style="width: 60px;">% Periodo</th>
                 <th>Estado</th>
@@ -58,10 +59,13 @@
                 <td style="text-align: center;">{{ $index + 1 }}</td>
                 <td>{{ $alumno['nombre'] }}</td>
                 <td>{{ $alumno['matricula'] }}</td>
+                <td style="text-align: center;">{{ $alumno['conteos']['presente'] }} / {{ $alumno['conteos']['atraso'] }} / {{ $alumno['conteos']['falta'] }} / {{ $alumno['conteos']['licencia'] }}</td>
                 <td style="text-align: center;">{{ $alumno['asistencias_puntos'] }}</td>
                 <td style="text-align: center;">{{ $alumno['porcentaje'] }}%</td>
                 <td style="text-align: center;">
-                    @if($alumno['riesgo'])
+                    @if($alumno['sin_clases'])
+                        <span>SIN CLASES</span>
+                    @elseif($alumno['riesgo'])
                         <span class="rojo">EN RIESGO</span>
                     @else
                         <span class="verde">REGULAR</span>
@@ -72,6 +76,7 @@
         </tbody>
     </table>
     
+    <p style="font-size: 9px; color: #666;">P / A / F / L: presentes, atrasos, faltas y licencias registradas. Las licencias solo suman puntos si están aprobadas. Total de clases = fechas distintas con registros, no clases programadas.</p>
     <div class="footer">
         Generado por Sistema SITA - {{ date('Y') }}
     </div>
