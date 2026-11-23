@@ -196,4 +196,61 @@ class ListaControlGestionActivaTest extends TestCase
             'fecha' => '2025-05-02',
         ])->assertStatus(422);
     }
+
+    public function test_finalizar_completa_faltas_y_licencias_sin_duplicar_ni_mezclar_gestiones(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-05-02 12:00:00', 'America/La_Paz'));
+        [$curso, $materia] = $this->prepararDocente();
+        $actual = Gestion::create(['anio' => '2026', 'es_activa' => true]);
+        $anterior = Gestion::create(['anio' => '2025', 'es_activa' => false]);
+        $presente = $this->inscribir($curso, $actual, 'CIERRE-P');
+        $atraso = $this->inscribir($curso, $actual, 'CIERRE-A');
+        $ausente = $this->inscribir($curso, $actual, 'CIERRE-F');
+        $justificado = $this->inscribir($curso, $actual, 'CIERRE-L');
+        $this->inscribir($curso, $anterior, 'CIERRE-HIST');
+        $this->inscribir($curso, $actual, 'CIERRE-RET', 'Retirado');
+        $this->registrar($presente, $materia, '2026-05-02', 'presente');
+        $this->registrar($atraso, $materia, '2026-05-02', 'atraso');
+        Licencia::create([
+            'estudiante_id' => $justificado->id,
+            'motivo' => 'Prueba',
+            'fecha_inicio' => '2026-05-02',
+            'fecha_fin' => '2026-05-02',
+            'estado' => 'aprobada',
+        ]);
+        $datos = ['materia_id' => $materia->id, 'fecha' => '2026-05-02'];
+        $this->postJson('/api/docente/finalizar-asistencia', $datos)
+            ->assertOk()->assertJsonPath('faltas_generadas', 1)
+            ->assertJsonPath('licencias_registradas', 1)
+            ->assertJsonPath('registros_conservados', 2);
+        foreach ([[$presente, 'presente'], [$atraso, 'atraso'], [$ausente, 'falta'], [$justificado, 'licencia']] as [$alumno, $estado]) {
+            $this->assertDatabaseHas('asistencias', [
+                'estudiante_id' => $alumno->id, 'materia_id' => $materia->id,
+                'fecha' => '2026-05-02', 'estado' => $estado,
+            ]);
+        }
+        $this->postJson('/api/docente/finalizar-asistencia', $datos)
+            ->assertOk()->assertJsonPath('faltas_generadas', 0)
+            ->assertJsonPath('licencias_registradas', 0);
+        $this->assertDatabaseCount('asistencias', 4);
+        $this->postJson('/api/docente/finalizar-asistencia', [
+            'materia_id' => $materia->id, 'fecha' => '2026-05-01',
+        ])->assertUnprocessable();
+
+        // Una sincronizacion posterior puede corregir la falta con la hora original.
+        $materia->update(['hora_inicio' => '08:00:00', 'minutos_tolerancia' => 10]);
+        $this->postJson('/api/docente/registrar-qr', [
+            'materia_id' => $materia->id, 'codigo_qr' => $ausente->codigo_qr,
+            'fecha' => '2026-05-02', 'hora' => '08:05',
+        ])->assertOk();
+        $this->assertDatabaseHas('asistencias', [
+            'estudiante_id' => $ausente->id, 'estado' => 'presente', 'observacion' => null,
+        ]);
+        $this->assertDatabaseCount('asistencias', 4);
+
+        $otro = $this->crearUsuario('docente', 'cierre-otro@sita.test');
+        Docente::create(['user_id' => $otro->id]);
+        Sanctum::actingAs($otro);
+        $this->postJson('/api/docente/finalizar-asistencia', $datos)->assertForbidden();
+    }
 }

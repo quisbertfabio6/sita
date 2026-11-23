@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Models\Asistencia;
 use App\Models\Licencia;
 use App\Models\Materia;
@@ -122,18 +123,22 @@ class DocenteApiController extends Controller
             ? 'atraso'
             : 'presente';
 
-        Asistencia::updateOrCreate(
-            [
-                'estudiante_id' => $estudiante->id,
-                'materia_id' => $materia->id,
-                'fecha' => $datos['fecha'],
-            ],
-            [
-                'hora' => $momentoRegistro->format('H:i:s'),
-                'estado' => $estadoCalculado,
-                'es_sincronizado' => true,
-            ]
-        );
+        DB::transaction(function () use ($materia, $estudiante, $datos, $momentoRegistro, $estadoCalculado) {
+            Materia::whereKey($materia->id)->lockForUpdate()->firstOrFail();
+            Asistencia::updateOrCreate(
+                [
+                    'estudiante_id' => $estudiante->id,
+                    'materia_id' => $materia->id,
+                    'fecha' => $datos['fecha'],
+                ],
+                [
+                    'hora' => $momentoRegistro->format('H:i:s'),
+                    'estado' => $estadoCalculado,
+                    'observacion' => null,
+                    'es_sincronizado' => true,
+                ]
+            );
+        }, 3);
 
         return response()->json([
             'success' => true,
@@ -323,23 +328,106 @@ class DocenteApiController extends Controller
             ], 409);
         }
 
-        Asistencia::updateOrCreate(
-            [
-                'estudiante_id' => $datos['estudiante_id'],
-                'materia_id' => $materia->id,
-                'fecha' => $fecha,
-            ],
-            [
-                'hora' => now()->format('H:i:s'),
-                'estado' => $datos['estado'],
-                'es_sincronizado' => true,
-            ]
-        );
+        DB::transaction(function () use ($materia, $datos, $fecha) {
+            Materia::whereKey($materia->id)->lockForUpdate()->firstOrFail();
+            Asistencia::updateOrCreate(
+                [
+                    'estudiante_id' => $datos['estudiante_id'],
+                    'materia_id' => $materia->id,
+                    'fecha' => $fecha,
+                ],
+                [
+                    'hora' => now()->format('H:i:s'),
+                    'estado' => $datos['estado'],
+                    'observacion' => null,
+                    'es_sincronizado' => true,
+                ]
+            );
+        }, 3);
 
         return response()->json([
             'success' => true,
             'message' => 'Estado actualizado',
         ]);
+    }
+
+
+    // Finalizar la asistencia del dia: solo completar registros inexistentes.
+    // No bloquear correcciones posteriores ni escaneos offline sincronizados tarde.
+    public function finalizarAsistencia(Request $request)
+    {
+        $datos = $request->validate([
+            'materia_id' => 'required|integer|exists:materias,id',
+            'fecha' => 'required|date_format:Y-m-d',
+        ]);
+
+        $docente = $request->user()?->docente;
+        if (!$docente || !$docente->materias()->where('materias.id', $datos['materia_id'])->exists()) {
+            return response()->json(['success' => false, 'message' => 'Materia no asignada al docente.'], 403);
+        }
+
+        $fecha = $datos['fecha'];
+        $ahora = now('America/La_Paz');
+        if ($fecha !== $ahora->toDateString()) {
+            return response()->json(['success' => false, 'message' => 'Solo se puede finalizar la asistencia de hoy.'], 422);
+        }
+
+        return DB::transaction(function () use ($datos, $fecha, $ahora) {
+            // Serializar el cierre con los registros QR y manuales de esta materia.
+            $materia = Materia::whereKey($datos['materia_id'])->lockForUpdate()->firstOrFail();
+            $gestion = Gestion::where('es_activa', true)->first();
+            if (!$gestion || $gestion->anio !== substr($fecha, 0, 4)) {
+                return response()->json(['success' => false, 'message' => 'La fecha no corresponde a una gestion activa.'], 422);
+            }
+
+            $ids = Estudiante::whereHas('inscripciones', function ($consulta) use ($materia, $gestion) {
+                $consulta->where('curso_id', $materia->curso_id)
+                    ->where('gestion_id', $gestion->id)
+                    ->where('estado', 'Activo');
+            })->pluck('id');
+
+            if ($ids->isEmpty()) {
+                return response()->json(['success' => false, 'message' => 'No hay estudiantes inscritos en esta materia.'], 422);
+            }
+
+            $registrados = Asistencia::where('materia_id', $materia->id)
+                ->where('fecha', $fecha)->whereIn('estudiante_id', $ids)
+                ->pluck('estudiante_id');
+            $faltantes = $ids->diff($registrados);
+
+            // Bloquear solicitudes de esa fecha mientras se comprueba su estado.
+            $licencias = Licencia::whereIn('estudiante_id', $faltantes)
+                ->whereDate('fecha_inicio', '<=', $fecha)
+                ->whereDate('fecha_fin', '>=', $fecha)
+                ->lockForUpdate()->get()
+                ->where('estado', 'aprobada')->keyBy('estudiante_id');
+
+            $faltas = 0;
+            $justificadas = 0;
+            foreach ($faltantes as $id) {
+                $licencia = $licencias->get($id);
+                Asistencia::create([
+                    'estudiante_id' => $id,
+                    'materia_id' => $materia->id,
+                    'fecha' => $fecha,
+                    'hora' => $ahora->format('H:i:s'),
+                    'estado' => $licencia ? 'licencia' : 'falta',
+                    'observacion' => $licencia
+                        ? 'Justificado por licencia #' . $licencia->id
+                        : 'Falta generada al finalizar asistencia',
+                    'es_sincronizado' => true,
+                ]);
+                $licencia ? $justificadas++ : $faltas++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Asistencia finalizada correctamente.',
+                'faltas_generadas' => $faltas,
+                'licencias_registradas' => $justificadas,
+                'registros_conservados' => $ids->count() - $faltantes->count(),
+            ]);
+        }, 3);
     }
 
     // 5. Fechas registradas solo durante la gestion academica activa.

@@ -67,6 +67,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/docente/registrar-qr', [DocenteApiController::class, 'registrarAsistencia']);
         Route::post('/docente/lista-control', [DocenteApiController::class, 'listaEstudiantesConEstadistica']);
         Route::post('/docente/registrar-manual', [DocenteApiController::class, 'registrarManual']);
+        Route::post('/docente/finalizar-asistencia', [DocenteApiController::class, 'finalizarAsistencia']);
         Route::post('/docente/fechas-clases', [DocenteApiController::class, 'obtenerFechasClases']);
     });
 
